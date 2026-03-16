@@ -169,7 +169,8 @@ public final class Paygate {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw PaygateError.serverError
+            let detail = Self.parseErrorDetail(from: data)
+            throw PaygateError.serverError(detail: detail)
         }
 
         return try JSONDecoder().decode(FlowData.self, from: data)
@@ -186,10 +187,16 @@ public final class Paygate {
 
         let (data, response) = try await URLSession.shared.data(for: request)
         guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw PaygateError.serverError
+            let detail = Self.parseErrorDetail(from: data)
+            throw PaygateError.serverError(detail: detail)
         }
 
         return try JSONDecoder().decode(FlowData.self, from: data)
+    }
+
+    private static func parseErrorDetail(from data: Data) -> String? {
+        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
+        return json["detail"] as? String ?? json["error"] as? String
     }
 
     @MainActor
@@ -250,7 +257,7 @@ public enum PaygateError: LocalizedError {
     case notInitialized
     case invalidURL
     case noData
-    case serverError
+    case serverError(detail: String? = nil)
     case noPresentingViewController
     case productNotFound
 
@@ -262,7 +269,10 @@ public enum PaygateError: LocalizedError {
             return "Invalid API URL."
         case .noData:
             return "No data received from server."
-        case .serverError:
+        case .serverError(let detail):
+            if let detail, !detail.isEmpty {
+                return "Server returned an error: \(detail)"
+            }
             return "Server returned an error."
         case .noPresentingViewController:
             return "No view controller available to present from."
