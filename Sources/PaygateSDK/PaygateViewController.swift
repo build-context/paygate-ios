@@ -9,6 +9,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let apiKey: String
     private let baseURL: String
     private let bounces: Bool
+    private let productIdMap: [String: String]
     private let completion: (PaygateResult) -> Void
     private var webView: WKWebView!
 
@@ -23,6 +24,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         self.apiKey = apiKey
         self.baseURL = baseURL
         self.bounces = bounces
+        self.productIdMap = flowData.productIdMap
         self.completion = completion
         super.init(nibName: nil, bundle: nil)
     }
@@ -119,14 +121,20 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     }
 
     private func handlePurchase(productId: String) {
+        let storeProductId = productIdMap[productId] ?? productId
+        print("[Paygate] Purchase requested: \(productId) → App Store ID: \(storeProductId)")
+
         trackEvent(eventType: "purchase_initiated", metadata: ["productId": productId])
 
         Task {
             do {
-                let purchased = try await StoreKitManager.shared.purchase(productId)
-                if let productId = purchased {
-                    trackEvent(eventType: "purchase_completed", metadata: ["productId": productId])
-                    dismissFlow(result: .purchased(productId: productId))
+                let purchased = try await StoreKitManager.shared.purchase(storeProductId)
+                if let purchasedId = purchased {
+                    print("[Paygate] Purchase completed: \(purchasedId)")
+                    trackEvent(eventType: "purchase_completed", metadata: ["productId": purchasedId])
+                    dismissFlow(result: .purchased(productId: purchasedId))
+                } else {
+                    print("[Paygate] Purchase cancelled by user")
                 }
             } catch {
                 print("[Paygate] Purchase error: \(error.localizedDescription)")

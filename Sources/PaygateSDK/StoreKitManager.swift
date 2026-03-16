@@ -1,12 +1,12 @@
 import StoreKit
 
-actor StoreKitManager {
-    static let shared = StoreKitManager()
+public actor StoreKitManager {
+    public static let shared = StoreKitManager()
 
-    private(set) var purchasedProductIDs: Set<String> = []
+    public private(set) var purchasedProductIDs: Set<String> = []
     private var updateListenerTask: Task<Void, Never>?
 
-    func start() {
+    public func start() {
         updateListenerTask?.cancel()
         updateListenerTask = Task.detached {
             for await result in Transaction.updates {
@@ -17,7 +17,7 @@ actor StoreKitManager {
         }
     }
 
-    func loadPurchasedProducts() async {
+    public func loadPurchasedProducts() async {
         var purchased: Set<String> = []
         for await result in Transaction.currentEntitlements {
             if let transaction = try? result.payloadValue,
@@ -28,7 +28,7 @@ actor StoreKitManager {
         purchasedProductIDs = purchased
     }
 
-    func purchase(_ productID: String) async throws -> String? {
+    public func purchase(_ productID: String) async throws -> String? {
         let products = try await Product.products(for: [productID])
         guard let product = products.first else {
             throw PaygateError.productNotFound
@@ -50,7 +50,7 @@ actor StoreKitManager {
         }
     }
 
-    func isPurchased(_ productID: String) -> Bool {
+    public func isPurchased(_ productID: String) -> Bool {
         purchasedProductIDs.contains(productID)
     }
 
