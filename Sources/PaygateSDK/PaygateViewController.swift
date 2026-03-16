@@ -1,0 +1,159 @@
+import UIKit
+import WebKit
+
+/// View controller that presents a Paygate flow in a WKWebView.
+/// Handles the JS bridge for close and purchase events.
+public class PaygateViewController: UIViewController, WKScriptMessageHandler, WKNavigationDelegate {
+
+    private let flowData: FlowData
+    private let apiKey: String
+    private let baseURL: String
+    private let completion: ((PaygateResult) -> Void)?
+    private var webView: WKWebView!
+
+    init(
+        flowData: FlowData,
+        apiKey: String,
+        baseURL: String,
+        completion: ((PaygateResult) -> Void)?
+    ) {
+        self.flowData = flowData
+        self.apiKey = apiKey
+        self.baseURL = baseURL
+        self.completion = completion
+        super.init(nibName: nil, bundle: nil)
+    }
+
+    required init?(coder: NSCoder) {
+        fatalError("init(coder:) has not been implemented")
+    }
+
+    public override func viewDidLoad() {
+        super.viewDidLoad()
+        view.backgroundColor = .black
+        setupWebView()
+        loadFlowContent()
+    }
+
+    // MARK: - Setup
+
+    private func setupWebView() {
+        let config = WKWebViewConfiguration()
+
+        // Add JS bridge message handler
+        let contentController = WKUserContentController()
+        contentController.add(self, name: "paygate")
+        config.userContentController = contentController
+
+        // Allow inline media playback
+        config.allowsInlineMediaPlayback = true
+        config.mediaTypesRequiringUserActionForPlayback = []
+
+        webView = WKWebView(frame: .zero, configuration: config)
+        webView.navigationDelegate = self
+        webView.scrollView.bounces = false
+        webView.isOpaque = false
+        webView.backgroundColor = .clear
+        webView.scrollView.backgroundColor = .clear
+        webView.translatesAutoresizingMaskIntoConstraints = false
+
+        view.addSubview(webView)
+
+        NSLayoutConstraint.activate([
+            webView.topAnchor.constraint(equalTo: view.topAnchor),
+            webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
+            webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
+
+    private func loadFlowContent() {
+        // Load the HTML content directly into the WebView
+        webView.loadHTMLString(flowData.htmlContent, baseURL: URL(string: baseURL))
+    }
+
+    // MARK: - WKScriptMessageHandler
+
+    public func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage
+    ) {
+        guard message.name == "paygate",
+              let body = message.body as? [String: Any],
+              let action = body["action"] as? String else {
+            return
+        }
+
+        switch action {
+        case "close":
+            dismissFlow(result: .dismissed)
+
+        case "purchase":
+            if let productId = body["productId"] as? String {
+                handlePurchase(productId: productId)
+            }
+
+        default:
+            print("[Paygate] Unknown action: \(action)")
+        }
+    }
+
+    // MARK: - Actions
+
+    private func dismissFlow(result: PaygateResult) {
+        dismiss(animated: true) { [weak self] in
+            self?.completion?(result)
+        }
+    }
+
+    private func handlePurchase(productId: String) {
+        // Track the purchase event
+        trackEvent(eventType: "purchase_initiated", metadata: ["productId": productId])
+
+        // In a full implementation, this would trigger StoreKit purchase flow.
+        // For now, we notify the completion handler with the product ID.
+        // Developers can handle the actual StoreKit purchase in their app.
+        dismissFlow(result: .purchased(productId: productId))
+    }
+
+    private func trackEvent(eventType: String, metadata: [String: String] = [:]) {
+        guard let url = URL(string: "\(baseURL)/api/sdk/flows/\(flowData.id)/events") else { return }
+
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+
+        let body: [String: Any] = [
+            "eventType": eventType,
+            "metadata": metadata,
+        ]
+
+        request.httpBody = try? JSONSerialization.data(withJSONObject: body)
+
+        URLSession.shared.dataTask(with: request) { _, _, error in
+            if let error = error {
+                print("[Paygate] Error tracking event: \(error.localizedDescription)")
+            }
+        }.resume()
+    }
+
+    // MARK: - WKNavigationDelegate
+
+    public func webView(
+        _ webView: WKWebView,
+        decidePolicyFor navigationAction: WKNavigationAction,
+        decisionHandler: @escaping (WKNavigationActionPolicy) -> Void
+    ) {
+        // Only allow the initial HTML load and same-origin navigation
+        if navigationAction.navigationType == .other || navigationAction.navigationType == .reload {
+            decisionHandler(.allow)
+        } else {
+            // Open external links in Safari
+            if let url = navigationAction.request.url {
+                UIApplication.shared.open(url)
+            }
+            decisionHandler(.cancel)
+        }
+    }
+}
