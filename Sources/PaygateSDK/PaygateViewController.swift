@@ -8,14 +8,14 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let flowData: FlowData
     private let apiKey: String
     private let baseURL: String
-    private let completion: ((PaygateResult) -> Void)?
+    private let completion: (PaygateResult) -> Void
     private var webView: WKWebView!
 
     init(
         flowData: FlowData,
         apiKey: String,
         baseURL: String,
-        completion: ((PaygateResult) -> Void)?
+        completion: @escaping (PaygateResult) -> Void
     ) {
         self.flowData = flowData
         self.apiKey = apiKey
@@ -102,18 +102,25 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
     private func dismissFlow(result: PaygateResult) {
         dismiss(animated: true) { [weak self] in
-            self?.completion?(result)
+            self?.completion(result)
         }
     }
 
     private func handlePurchase(productId: String) {
-        // Track the purchase event
         trackEvent(eventType: "purchase_initiated", metadata: ["productId": productId])
 
-        // In a full implementation, this would trigger StoreKit purchase flow.
-        // For now, we notify the completion handler with the product ID.
-        // Developers can handle the actual StoreKit purchase in their app.
-        dismissFlow(result: .purchased(productId: productId))
+        Task {
+            do {
+                let purchased = try await StoreKitManager.shared.purchase(productId)
+                if let productId = purchased {
+                    trackEvent(eventType: "purchase_completed", metadata: ["productId": productId])
+                    dismissFlow(result: .purchased(productId: productId))
+                }
+            } catch {
+                print("[Paygate] Purchase error: \(error.localizedDescription)")
+                dismissFlow(result: .error(error))
+            }
+        }
     }
 
     private func trackEvent(eventType: String, metadata: [String: String] = [:]) {
