@@ -8,6 +8,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let flowData: FlowData
     private let apiKey: String
     private let baseURL: String
+    private let bounces: Bool
     private let completion: (PaygateResult) -> Void
     private var webView: WKWebView!
 
@@ -15,11 +16,13 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         flowData: FlowData,
         apiKey: String,
         baseURL: String,
+        bounces: Bool = false,
         completion: @escaping (PaygateResult) -> Void
     ) {
         self.flowData = flowData
         self.apiKey = apiKey
         self.baseURL = baseURL
+        self.bounces = bounces
         self.completion = completion
         super.init(nibName: nil, bundle: nil)
     }
@@ -51,7 +54,8 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
         webView = WKWebView(frame: .zero, configuration: config)
         webView.navigationDelegate = self
-        webView.scrollView.bounces = false
+        webView.scrollView.bounces = bounces
+        webView.scrollView.contentInsetAdjustmentBehavior = .never
         webView.isOpaque = false
         webView.backgroundColor = .clear
         webView.scrollView.backgroundColor = .clear
@@ -68,8 +72,16 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     }
 
     private func loadFlowContent() {
-        // Load the HTML content directly into the WebView
-        webView.loadHTMLString(flowData.htmlContent, baseURL: URL(string: baseURL))
+        let viewportMeta = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, viewport-fit=cover\">"
+        let html: String
+        if flowData.htmlContent.range(of: "<head>", options: .caseInsensitive) != nil {
+            html = flowData.htmlContent.replacingOccurrences(
+                of: "<head>", with: "<head>\(viewportMeta)", options: .caseInsensitive
+            )
+        } else {
+            html = "\(viewportMeta)\(flowData.htmlContent)"
+        }
+        webView.loadHTMLString(html, baseURL: URL(string: baseURL))
     }
 
     // MARK: - WKScriptMessageHandler

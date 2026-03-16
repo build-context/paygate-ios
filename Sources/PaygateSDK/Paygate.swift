@@ -31,7 +31,7 @@ public final class Paygate {
     ///   If the user already owns a product in this flow, returns it immediately without
     ///   showing the paywall.
     @MainActor
-    public static func launch(_ flowId: String) async throws -> String? {
+    public static func launch(_ flowId: String, bounces: Bool = false) async throws -> String? {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
         }
@@ -52,7 +52,8 @@ public final class Paygate {
             let paygateVC = PaygateViewController(
                 flowData: flowData,
                 apiKey: apiKey,
-                baseURL: baseURL
+                baseURL: baseURL,
+                bounces: bounces
             ) { result in
                 switch result {
                 case .dismissed:
