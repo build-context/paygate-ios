@@ -3,7 +3,7 @@ import StoreKit
 public actor StoreKitManager {
     public static let shared = StoreKitManager()
 
-    public private(set) var purchasedProductIDs: Set<String> = []
+    public private(set) var activeSubscriptionProductIDs: Set<String> = []
     private var updateListenerTask: Task<Void, Never>?
 
     public func start() {
@@ -18,14 +18,15 @@ public actor StoreKitManager {
     }
 
     public func loadPurchasedProducts() async {
-        var purchased: Set<String> = []
+        var active: Set<String> = []
         for await result in Transaction.currentEntitlements {
             if let transaction = try? result.payloadValue,
-               transaction.revocationDate == nil {
-                purchased.insert(transaction.productID)
+               transaction.revocationDate == nil,
+               isSubscription(transaction.productType) {
+                active.insert(transaction.productID)
             }
         }
-        purchasedProductIDs = purchased
+        activeSubscriptionProductIDs = active
     }
 
     public func purchase(_ productID: String) async throws -> String? {
@@ -39,7 +40,9 @@ public actor StoreKitManager {
         case .success(let verification):
             let transaction = try verification.payloadValue
             await transaction.finish()
-            purchasedProductIDs.insert(transaction.productID)
+            if isSubscription(product.type) {
+                activeSubscriptionProductIDs.insert(transaction.productID)
+            }
             return transaction.productID
         case .userCancelled:
             return nil
@@ -51,15 +54,19 @@ public actor StoreKitManager {
     }
 
     public func isPurchased(_ productID: String) -> Bool {
-        purchasedProductIDs.contains(productID)
+        activeSubscriptionProductIDs.contains(productID)
     }
 
     private func handle(_ transaction: Transaction) {
-        if transaction.revocationDate == nil {
-            purchasedProductIDs.insert(transaction.productID)
+        if transaction.revocationDate == nil, isSubscription(transaction.productType) {
+            activeSubscriptionProductIDs.insert(transaction.productID)
         } else {
-            purchasedProductIDs.remove(transaction.productID)
+            activeSubscriptionProductIDs.remove(transaction.productID)
         }
         Task { await transaction.finish() }
+    }
+
+    private func isSubscription(_ type: Product.ProductType) -> Bool {
+        type == .autoRenewable || type == .nonRenewable
     }
 }

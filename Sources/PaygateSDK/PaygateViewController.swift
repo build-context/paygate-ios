@@ -11,7 +11,9 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let bounces: Bool
     private let productIdMap: [String: String]
     private let completion: (PaygateResult) -> Void
+    private var didInvokeCompletion = false
     private var webView: WKWebView!
+    private var spinner: UIActivityIndicatorView!
 
     init(
         flowData: FlowData,
@@ -37,7 +39,16 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         super.viewDidLoad()
         view.backgroundColor = .black
         setupWebView()
+        setupSpinner()
         loadFlowContent()
+    }
+
+    public override func viewDidDisappear(_ animated: Bool) {
+        super.viewDidDisappear(animated)
+        // User may have swiped to dismiss the sheet; ensure continuation is always resumed
+        if isBeingDismissed, !didInvokeCompletion {
+            invokeCompletionOnce(.dismissed)
+        }
     }
 
     // MARK: - Setup
@@ -70,6 +81,19 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
             webView.leadingAnchor.constraint(equalTo: view.leadingAnchor),
             webView.trailingAnchor.constraint(equalTo: view.trailingAnchor),
             webView.bottomAnchor.constraint(equalTo: view.bottomAnchor),
+        ])
+    }
+
+    private func setupSpinner() {
+        spinner = UIActivityIndicatorView(style: .large)
+        spinner.color = .white
+        spinner.translatesAutoresizingMaskIntoConstraints = false
+        spinner.startAnimating()
+
+        view.addSubview(spinner)
+        NSLayoutConstraint.activate([
+            spinner.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            spinner.centerYAnchor.constraint(equalTo: view.centerYAnchor),
         ])
     }
 
@@ -114,10 +138,15 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
     // MARK: - Actions
 
+    private func invokeCompletionOnce(_ result: PaygateResult) {
+        guard !didInvokeCompletion else { return }
+        didInvokeCompletion = true
+        completion(result)
+    }
+
     private func dismissFlow(result: PaygateResult) {
-        dismiss(animated: true) { [weak self] in
-            self?.completion(result)
-        }
+        invokeCompletionOnce(result)
+        dismiss(animated: true)
     }
 
     private func handlePurchase(productId: String) {
@@ -149,6 +178,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
+        request.setValue(Paygate.apiVersion, forHTTPHeaderField: "Paygate-Version")
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let body: [String: Any] = [
@@ -166,6 +196,11 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     }
 
     // MARK: - WKNavigationDelegate
+
+    public func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        spinner.stopAnimating()
+        spinner.removeFromSuperview()
+    }
 
     public func webView(
         _ webView: WKWebView,

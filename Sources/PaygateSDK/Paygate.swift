@@ -3,34 +3,86 @@ import UIKit
 
 public final class Paygate {
 
+    /// Date-based API version (Stripe-style). Must match a version supported by the backend.
+    public static let apiVersion = "2025-03-16"
+
     private static var apiKey: String?
     private static var baseURL: String = "https://api-oh6xuuomca-uc.a.run.app"
+    private static var flowCache: [String: FlowData] = [:]
     private static var gateCache: [String: FlowData] = [:]
 
-    /// Initialize the SDK, load the user's current purchases, and begin
-    /// listening for transaction updates.
+    static var flows: FlowRepository!
+    static var gates: GateRepository!
+    static var products: ProductRepository!
+
+    /// Initialize the SDK, optionally prefetch gate and flow data, load the
+    /// user's active subscriptions, and begin listening for transaction updates.
+    ///
+    /// - Parameters:
+    ///   - apiKey: Your Paygate API key.
+    ///   - baseURL: Override the default API base URL.
+    ///   - gateIds: Gate IDs to prefetch at launch so `launchGate` can check
+    ///     eligibility and present without a network round-trip.
+    ///   - flowIds: Flow IDs to prefetch at launch so `launchFlow` can check
+    ///     eligibility and present without a network round-trip.
     @MainActor
-    public static func initialize(apiKey: String, baseURL: String? = nil) async {
+    public static func initialize(
+        apiKey: String,
+        baseURL: String? = nil,
+        gateIds: [String]? = nil,
+        flowIds: [String]? = nil
+    ) async {
         self.apiKey = apiKey
         if let baseURL = baseURL {
             self.baseURL = baseURL
         }
+
+        flows = FlowRepository(baseURL: self.baseURL, apiKey: apiKey)
+        gates = GateRepository(baseURL: self.baseURL, apiKey: apiKey)
+        products = ProductRepository(baseURL: self.baseURL, apiKey: apiKey)
+
         await StoreKitManager.shared.start()
         await StoreKitManager.shared.loadPurchasedProducts()
+        let ids = await StoreKitManager.shared.activeSubscriptionProductIDs
+        print("[Paygate] Active subscription product IDs:", ids.sorted().joined(separator: ", "))
+
+        // Prefetch gate flows and standalone flows concurrently.
+        await withTaskGroup(of: Void.self) { group in
+            for gateId in gateIds ?? [] {
+                group.addTask {
+                    do {
+                        let flowData = try await gates.getGate(gateId)
+                        await MainActor.run { gateCache[gateId] = flowData }
+                    } catch {
+                        print("[Paygate] Failed to prefetch gate \(gateId):", error.localizedDescription)
+                    }
+                }
+            }
+            for flowId in flowIds ?? [] {
+                group.addTask {
+                    do {
+                        let flowData = try await flows.getFlow(flowId)
+                        await MainActor.run { flowCache[flowId] = flowData }
+                    } catch {
+                        print("[Paygate] Failed to prefetch flow \(flowId):", error.localizedDescription)
+                    }
+                }
+            }
+        }
     }
 
-    /// The set of product IDs the user currently owns.
-    public static var purchasedProductIDs: Set<String> {
+    /// The set of App Store product IDs for which the user has an active subscription.
+    public static var activeSubscriptionProductIDs: Set<String> {
         get async {
-            await StoreKitManager.shared.purchasedProductIDs
+            await StoreKitManager.shared.activeSubscriptionProductIDs
         }
     }
 
     /// Launch a paywall flow.
     /// - Parameter flowId: The ID of the flow to present.
     /// - Returns: The purchased product ID, or `nil` if the user dismissed without purchasing.
-    ///   If the user already owns a product in this flow, returns it immediately without
-    ///   showing the paywall.
+    ///   If the user already has an active subscription for a product in this flow, returns
+    ///   that product's App Store ID immediately without showing the paywall.
     @MainActor
     public static func launchFlow(
         _ flowId: String,
@@ -41,12 +93,22 @@ public final class Paygate {
             throw PaygateError.notInitialized
         }
 
-        let flowData = try await fetchFlow(flowId: flowId, apiKey: apiKey)
+        let flowData: FlowData
+        if let cached = flowCache[flowId] {
+            flowData = cached
+        } else {
+            let fetched = try await flows.getFlow(flowId)
+            flowCache[flowId] = fetched
+            flowData = fetched
+        }
 
         let idMap = flowData.productIdMap
-        for productId in flowData.productIds {
-            let storeId = idMap[productId] ?? productId
-            if await StoreKitManager.shared.isPurchased(storeId) {
+        let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
+        // productIdMap covers all products associated with this flow — both those
+        // listed in productIds and those only referenced in the HTML templates.
+        // Checking its values (App Store IDs) catches both cases.
+        for storeId in idMap.values {
+            if activeIds.contains(storeId) {
                 return storeId
             }
         }
@@ -91,7 +153,8 @@ public final class Paygate {
     /// Launch a gate, which randomly selects a flow based on configured weights.
     /// - Parameter gateId: The ID of the gate to present.
     /// - Returns: The purchased product ID, or `nil` if the user dismissed without purchasing.
-    ///   If the user already owns a product in the selected flow, returns it immediately.
+    ///   If the user already has an active subscription for a product in the selected flow,
+    ///   returns that product's App Store ID immediately without showing the paywall.
     @MainActor
     public static func launchGate(
         _ gateId: String,
@@ -106,15 +169,18 @@ public final class Paygate {
         if let cached = gateCache[gateId] {
             flowData = cached
         } else {
-            let fetched = try await fetchGate(gateId: gateId, apiKey: apiKey)
+            let fetched = try await gates.getGate(gateId)
             gateCache[gateId] = fetched
             flowData = fetched
         }
 
         let gateIdMap = flowData.productIdMap
-        for productId in flowData.productIds {
-            let storeId = gateIdMap[productId] ?? productId
-            if await StoreKitManager.shared.isPurchased(storeId) {
+        let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
+        // productIdMap covers all products associated with this flow — both those
+        // listed in productIds and those only referenced in the HTML templates.
+        // Checking its values (App Store IDs) catches both cases.
+        for storeId in gateIdMap.values {
+            if activeIds.contains(storeId) {
                 return storeId
             }
         }
@@ -156,48 +222,23 @@ public final class Paygate {
         }
     }
 
+    /// Purchase a product by its Paygate product ID.
+    /// Resolves the App Store product ID from the backend, then triggers StoreKit.
+    /// - Returns: The App Store product ID on success, or `nil` if the user cancelled.
+    @MainActor
+    public static func purchase(_ productId: String) async throws -> String? {
+        guard products != nil else {
+            throw PaygateError.notInitialized
+        }
+
+        let product = try await products.getProduct(productId)
+        guard let appStoreId = product.appStoreId, !appStoreId.isEmpty else {
+            throw PaygateError.productNotFound
+        }
+        return try await StoreKitManager.shared.purchase(appStoreId)
+    }
+
     // MARK: - Private
-
-    private static func fetchFlow(flowId: String, apiKey: String) async throws -> FlowData {
-        guard let url = URL(string: "\(baseURL)/api/sdk/flows/\(flowId)") else {
-            throw PaygateError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        request.httpMethod = "GET"
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            let detail = Self.parseErrorDetail(from: data)
-            throw PaygateError.serverError(detail: detail)
-        }
-
-        return try JSONDecoder().decode(FlowData.self, from: data)
-    }
-
-    private static func fetchGate(gateId: String, apiKey: String) async throws -> FlowData {
-        guard let url = URL(string: "\(baseURL)/api/sdk/gates/\(gateId)") else {
-            throw PaygateError.invalidURL
-        }
-
-        var request = URLRequest(url: url)
-        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        request.httpMethod = "GET"
-
-        let (data, response) = try await URLSession.shared.data(for: request)
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            let detail = Self.parseErrorDetail(from: data)
-            throw PaygateError.serverError(detail: detail)
-        }
-
-        return try JSONDecoder().decode(FlowData.self, from: data)
-    }
-
-    private static func parseErrorDetail(from data: Data) -> String? {
-        guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else { return nil }
-        return json["detail"] as? String ?? json["error"] as? String
-    }
 
     @MainActor
     private static func topViewController() -> UIViewController? {
