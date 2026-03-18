@@ -23,13 +23,14 @@ public struct GateFlowResponse: Decodable {
 
     public let id: String
     public let name: String
-    public let htmlContent: String
+    public let pages: [FlowPage]
+    public let bridgeScript: String
     public let productIds: [String]
     public let products: [ProductData]?
 
     private enum CodingKeys: String, CodingKey {
         case gateId, selectedFlowId, enabledChannels
-        case id, name, htmlContent, productIds, products
+        case id, name, pages, bridgeScript, productIds, products
     }
 
     public init(from decoder: Decoder) throws {
@@ -39,7 +40,8 @@ public struct GateFlowResponse: Decodable {
         enabledChannels = try c.decodeIfPresent([String].self, forKey: .enabledChannels) ?? []
         id = try c.decode(String.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
-        htmlContent = try c.decode(String.self, forKey: .htmlContent)
+        pages = try c.decodeIfPresent([FlowPage].self, forKey: .pages) ?? []
+        bridgeScript = try c.decodeIfPresent(String.self, forKey: .bridgeScript) ?? ""
         productIds = try c.decode([String].self, forKey: .productIds)
         products = try c.decodeIfPresent([ProductData].self, forKey: .products)
     }
@@ -51,16 +53,23 @@ public struct GateFlowResponse: Decodable {
 
     /// Flow content for presentation.
     public var flowData: FlowData {
-        FlowData(id: id, name: name, htmlContent: htmlContent, productIds: productIds, products: products)
+        FlowData(id: id, name: name, pages: pages, bridgeScript: bridgeScript, productIds: productIds, products: products)
     }
 }
 
 // MARK: - Flow
 
+/// A single page in a flow. Matches SDK API response: `{ id, htmlContent }`.
+public struct FlowPage: Codable {
+    public let id: String
+    public let htmlContent: String
+}
+
 public struct FlowData: Codable {
     public let id: String
     public let name: String
-    public let htmlContent: String
+    public let pages: [FlowPage]
+    public let bridgeScript: String
     public let productIds: [String]
     public let products: [ProductData]?
 
@@ -87,9 +96,9 @@ public struct ProductData: Codable {
 
 // MARK: - Result & Presentation
 
-enum PaygateResult {
-    case dismissed
-    case purchased(productId: String)
+public enum PaygateResult {
+    case dismissed(data: [String: Any]?)
+    case purchased(productId: String, data: [String: Any]?)
     case error(Error)
 }
 

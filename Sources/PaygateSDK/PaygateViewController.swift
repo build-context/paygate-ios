@@ -47,7 +47,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         super.viewDidDisappear(animated)
         // User may have swiped to dismiss the sheet; ensure continuation is always resumed
         if isBeingDismissed, !didInvokeCompletion {
-            invokeCompletionOnce(.dismissed)
+            invokeCompletionOnce(.dismissed(data: nil))
         }
     }
 
@@ -113,15 +113,25 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     }
 
     private func loadFlowContent() {
-        let viewportMeta = "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0, viewport-fit=cover\">"
-        let html: String
-        if flowData.htmlContent.range(of: "<head>", options: .caseInsensitive) != nil {
-            html = flowData.htmlContent.replacingOccurrences(
-                of: "<head>", with: "<head>\(viewportMeta)", options: .caseInsensitive
-            )
-        } else {
-            html = "\(viewportMeta)\(flowData.htmlContent)"
-        }
+        let pageDivs = flowData.pages.enumerated().map { i, page in
+            let hidden = i > 0 ? " style=\"display:none\"" : ""
+            return "<div id=\"page_\(page.id)\" class=\"paygate-page\"\(hidden)>\(page.htmlContent)</div>"
+        }.joined(separator: "\n")
+
+        let html = """
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+        <title>Flow</title>
+        </head>
+        <body>
+        \(pageDivs)
+        \(flowData.bridgeScript)
+        </body>
+        </html>
+        """
         webView.loadHTMLString(html, baseURL: URL(string: baseURL))
     }
 
@@ -139,11 +149,13 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
         switch action {
         case "close":
-            dismissFlow(result: .dismissed)
+            let data = body["data"] as? [String: Any]
+            dismissFlow(result: .dismissed(data: data))
 
         case "purchase":
             if let productId = body["productId"] as? String {
-                handlePurchase(productId: productId)
+                let data = body["data"] as? [String: Any]
+                handlePurchase(productId: productId, data: data)
             }
 
         default:
@@ -164,7 +176,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         dismiss(animated: true)
     }
 
-    private func handlePurchase(productId: String) {
+    private func handlePurchase(productId: String, data: [String: Any]? = nil) {
         let storeProductId = productIdMap[productId] ?? productId
         print("[Paygate] Purchase requested: \(productId) → App Store ID: \(storeProductId)")
 
@@ -176,7 +188,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
                 if let purchasedId = purchased {
                     print("[Paygate] Purchase completed: \(purchasedId)")
                     trackEvent(eventType: "purchase_completed", metadata: ["productId": purchasedId])
-                    dismissFlow(result: .purchased(productId: purchasedId))
+                    dismissFlow(result: .purchased(productId: purchasedId, data: data))
                 } else {
                     print("[Paygate] Purchase cancelled by user")
                 }
@@ -188,7 +200,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     }
 
     private func trackEvent(eventType: String, metadata: [String: String] = [:]) {
-        guard let url = URL(string: "\(baseURL)/api/sdk/flows/\(flowData.id)/events") else { return }
+        guard let url = URL(string: "\(baseURL)/sdk/flows/\(flowData.id)/events") else { return }
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
