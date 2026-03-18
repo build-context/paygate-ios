@@ -10,10 +10,11 @@ public enum DistributionChannel: String {
 
 // MARK: - Gate
 
-/// Gate-level metadata (enabledChannels, requirePurchase live on gates, not flows).
+/// Gate-level metadata (enabledChannels, requirePurchase, launchCache live on gates, not flows).
 public struct GateData {
     public let enabledChannels: [String]
     public let requirePurchase: Bool
+    public let launchCache: String
 }
 
 /// Response from the gate SDK endpoint: selected flow content plus gate metadata.
@@ -22,6 +23,7 @@ public struct GateFlowResponse: Decodable {
     public let selectedFlowId: String
     public let enabledChannels: [String]
     public let requirePurchase: Bool
+    public let launchCache: String
 
     public let id: String
     public let name: String
@@ -31,7 +33,7 @@ public struct GateFlowResponse: Decodable {
     public let products: [ProductData]?
 
     private enum CodingKeys: String, CodingKey {
-        case gateId, selectedFlowId, enabledChannels, requirePurchase
+        case gateId, selectedFlowId, enabledChannels, requirePurchase, launchCache
         case id, name, pages, bridgeScript, productIds, products
     }
 
@@ -47,6 +49,7 @@ public struct GateFlowResponse: Decodable {
         } else {
             requirePurchase = false
         }
+        launchCache = try c.decodeIfPresent(String.self, forKey: .launchCache) ?? "cache_on_first_launch"
         id = try c.decode(String.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
         pages = try c.decodeIfPresent([FlowPage].self, forKey: .pages) ?? []
@@ -57,7 +60,7 @@ public struct GateFlowResponse: Decodable {
 
     /// Gate metadata.
     public var gate: GateData {
-        GateData(enabledChannels: enabledChannels, requirePurchase: requirePurchase)
+        GateData(enabledChannels: enabledChannels, requirePurchase: requirePurchase, launchCache: launchCache)
     }
 
     /// Flow content for presentation.

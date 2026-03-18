@@ -11,6 +11,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let bounces: Bool
     private let gateId: String?
     private let purchaseRequired: Bool
+    private let disableWebViewCache: Bool
     private let productIdMap: [String: String]
     private let completion: (PaygateResult) -> Void
     private var didInvokeCompletion = false
@@ -24,6 +25,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         bounces: Bool = false,
         gateId: String? = nil,
         purchaseRequired: Bool = false,
+        disableWebViewCache: Bool = false,
         completion: @escaping (PaygateResult) -> Void
     ) {
         self.flowData = flowData
@@ -32,6 +34,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         self.bounces = bounces
         self.gateId = gateId
         self.purchaseRequired = purchaseRequired
+        self.disableWebViewCache = disableWebViewCache
         self.productIdMap = flowData.productIdMap
         self.completion = completion
         super.init(nibName: nil, bundle: nil)
@@ -61,6 +64,12 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
     private func setupWebView() {
         let config = WKWebViewConfiguration()
+
+        // For refresh_on_launch gates, use non-persistent data store so the WebView
+        // does not cache any subresources (images, etc.) — ensuring fresh content.
+        if disableWebViewCache {
+            config.websiteDataStore = WKWebsiteDataStore.nonPersistent()
+        }
 
         // Add JS bridge message handler
         let contentController = WKUserContentController()

@@ -15,22 +15,16 @@ public final class Paygate {
     static var gates: GateRepository!
     static var products: ProductRepository!
 
-    /// Initialize the SDK, optionally prefetch gate and flow data, load the
-    /// user's active subscriptions, and begin listening for transaction updates.
+    /// Initialize the SDK, load the user's active subscriptions, and begin
+    /// listening for transaction updates.
     ///
     /// - Parameters:
     ///   - apiKey: Your Paygate API key.
     ///   - baseURL: Override the default API base URL.
-    ///   - gateIds: Gate IDs to prefetch at launch so `launchGate` can check
-    ///     eligibility and present without a network round-trip.
-    ///   - flowIds: Flow IDs to prefetch at launch so `launchFlow` can check
-    ///     eligibility and present without a network round-trip.
     @MainActor
     public static func initialize(
         apiKey: String,
-        baseURL: String? = nil,
-        gateIds: [String]? = nil,
-        flowIds: [String]? = nil
+        baseURL: String? = nil
     ) async {
         self.apiKey = apiKey
         if let baseURL = baseURL {
@@ -45,30 +39,6 @@ public final class Paygate {
         await StoreKitManager.shared.loadPurchasedProducts()
         let ids = await StoreKitManager.shared.activeSubscriptionProductIDs
         print("[Paygate] Active subscription product IDs:", ids.sorted().joined(separator: ", "))
-
-        // Prefetch gate flows and standalone flows concurrently.
-        await withTaskGroup(of: Void.self) { group in
-            for gateId in gateIds ?? [] {
-                group.addTask {
-                    do {
-                        let flowData = try await gates.getGate(gateId)
-                        await MainActor.run { gateCache[gateId] = flowData }
-                    } catch {
-                        print("[Paygate] Failed to prefetch gate \(gateId):", error.localizedDescription)
-                    }
-                }
-            }
-            for flowId in flowIds ?? [] {
-                group.addTask {
-                    do {
-                        let flowData = try await flows.getFlow(flowId)
-                        await MainActor.run { flowCache[flowId] = flowData }
-                    } catch {
-                        print("[Paygate] Failed to prefetch flow \(flowId):", error.localizedDescription)
-                    }
-                }
-            }
-        }
     }
 
     /// Current distribution channel (iOS).
@@ -177,7 +147,9 @@ public final class Paygate {
             response = cached
         } else {
             let fetched = try await gates.getGate(gateId)
-            gateCache[gateId] = fetched
+            if fetched.gate.launchCache == "cache_on_first_launch" {
+                gateCache[gateId] = fetched
+            }
             response = fetched
         }
 
@@ -202,6 +174,7 @@ public final class Paygate {
         }
 
         let purchaseRequired = response.gate.requirePurchase
+        let disableWebViewCache = response.gate.launchCache == "refresh_on_launch"
         return try await withCheckedThrowingContinuation { continuation in
             let paygateVC = PaygateViewController(
                 flowData: flowData,
@@ -209,7 +182,8 @@ public final class Paygate {
                 baseURL: baseURL,
                 bounces: bounces,
                 gateId: gateId,
-                purchaseRequired: purchaseRequired
+                purchaseRequired: purchaseRequired,
+                disableWebViewCache: disableWebViewCache
             ) { result in
                 switch result {
                 case .dismissed(let data):
