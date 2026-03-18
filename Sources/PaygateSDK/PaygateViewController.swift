@@ -9,6 +9,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let apiKey: String
     private let baseURL: String
     private let bounces: Bool
+    private let gateId: String?
     private let productIdMap: [String: String]
     private let completion: (PaygateResult) -> Void
     private var didInvokeCompletion = false
@@ -20,12 +21,14 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         apiKey: String,
         baseURL: String,
         bounces: Bool = false,
+        gateId: String? = nil,
         completion: @escaping (PaygateResult) -> Void
     ) {
         self.flowData = flowData
         self.apiKey = apiKey
         self.baseURL = baseURL
         self.bounces = bounces
+        self.gateId = gateId
         self.productIdMap = flowData.productIdMap
         self.completion = completion
         super.init(nibName: nil, bundle: nil)
@@ -151,6 +154,13 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         case "close":
             let data = body["data"] as? [String: Any]
             dismissFlow(result: .dismissed(data: data))
+
+        case "skip":
+            let data = body["data"] as? [String: Any]
+            if let gateId = gateId {
+                SkipPersistence.recordSkipped(gateId: gateId)
+            }
+            dismissFlow(result: .skipped(data: data))
 
         case "purchase":
             if let productId = body["productId"] as? String {

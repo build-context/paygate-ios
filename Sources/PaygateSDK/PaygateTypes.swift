@@ -10,9 +10,10 @@ public enum DistributionChannel: String {
 
 // MARK: - Gate
 
-/// Gate-level metadata (enabledChannels lives on gates, not flows).
+/// Gate-level metadata (enabledChannels, showAgainAfterSkip live on gates, not flows).
 public struct GateData {
     public let enabledChannels: [String]
+    public let showAgainAfterSkip: Bool
 }
 
 /// Response from the gate SDK endpoint: selected flow content plus gate metadata.
@@ -20,6 +21,7 @@ public struct GateFlowResponse: Decodable {
     public let gateId: String
     public let selectedFlowId: String
     public let enabledChannels: [String]
+    public let showAgainAfterSkip: Bool
 
     public let id: String
     public let name: String
@@ -29,7 +31,7 @@ public struct GateFlowResponse: Decodable {
     public let products: [ProductData]?
 
     private enum CodingKeys: String, CodingKey {
-        case gateId, selectedFlowId, enabledChannels
+        case gateId, selectedFlowId, enabledChannels, showAgainAfterSkip
         case id, name, pages, bridgeScript, productIds, products
     }
 
@@ -38,6 +40,13 @@ public struct GateFlowResponse: Decodable {
         gateId = try c.decode(String.self, forKey: .gateId)
         selectedFlowId = try c.decode(String.self, forKey: .selectedFlowId)
         enabledChannels = try c.decodeIfPresent([String].self, forKey: .enabledChannels) ?? []
+        if let rawBool = try? c.decodeIfPresent(Bool.self, forKey: .showAgainAfterSkip) {
+            showAgainAfterSkip = rawBool
+        } else if let rawStr = try? c.decodeIfPresent(String.self, forKey: .showAgainAfterSkip) {
+            showAgainAfterSkip = rawStr.lowercased() != "false"
+        } else {
+            showAgainAfterSkip = true
+        }
         id = try c.decode(String.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
         pages = try c.decodeIfPresent([FlowPage].self, forKey: .pages) ?? []
@@ -48,7 +57,7 @@ public struct GateFlowResponse: Decodable {
 
     /// Gate metadata.
     public var gate: GateData {
-        GateData(enabledChannels: enabledChannels)
+        GateData(enabledChannels: enabledChannels, showAgainAfterSkip: showAgainAfterSkip)
     }
 
     /// Flow content for presentation.
@@ -96,8 +105,31 @@ public struct ProductData: Codable {
 
 // MARK: - Result & Presentation
 
+/// Status returned from launchFlow/launchGate for developer handling.
+public enum PaygateLaunchStatus: String {
+    case purchased
+    case alreadySubscribed
+    case dismissed
+    case skipped
+    case channelNotEnabled
+}
+
+/// Typed result from launchFlow/launchGate.
+public struct PaygateLaunchResult {
+    public let status: PaygateLaunchStatus
+    public let productId: String?
+    public let data: [String: Any]?
+
+    public init(status: PaygateLaunchStatus, productId: String? = nil, data: [String: Any]? = nil) {
+        self.status = status
+        self.productId = productId
+        self.data = data
+    }
+}
+
 public enum PaygateResult {
     case dismissed(data: [String: Any]?)
+    case skipped(data: [String: Any]?)
     case purchased(productId: String, data: [String: Any]?)
     case error(Error)
 }

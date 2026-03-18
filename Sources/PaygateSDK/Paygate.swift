@@ -91,13 +91,13 @@ public final class Paygate {
 
     /// Launch a paywall flow.
     /// - Parameter flowId: The ID of the flow to present.
-    /// - Returns: The App Store product ID if purchased or already subscribed, or `nil` if dismissed.
+    /// - Returns: A typed result with status, optional productId, and optional data.
     @MainActor
     public static func launchFlow(
         _ flowId: String,
         bounces: Bool = false,
         presentationStyle: PaygatePresentationStyle = .sheet
-    ) async throws -> String? {
+    ) async throws -> PaygateLaunchResult {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
         }
@@ -113,12 +113,9 @@ public final class Paygate {
 
         let idMap = flowData.productIdMap
         let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
-        // productIdMap covers all products associated with this flow — both those
-        // listed in productIds and those only referenced in the HTML templates.
-        // Checking its values (App Store IDs) catches both cases.
         for storeId in idMap.values {
             if activeIds.contains(storeId) {
-                return storeId
+                return PaygateLaunchResult(status: .alreadySubscribed, productId: storeId)
             }
         }
 
@@ -131,13 +128,16 @@ public final class Paygate {
                 flowData: flowData,
                 apiKey: apiKey,
                 baseURL: baseURL,
-                bounces: bounces
+                bounces: bounces,
+                gateId: nil
             ) { result in
                 switch result {
-                case .dismissed:
-                    continuation.resume(returning: nil)
-                case .purchased(let productId, _):
-                    continuation.resume(returning: productId)
+                case .dismissed(let data):
+                    continuation.resume(returning: PaygateLaunchResult(status: .dismissed, data: data))
+                case .skipped(let data):
+                    continuation.resume(returning: PaygateLaunchResult(status: .dismissed, data: data))
+                case .purchased(let productId, let data):
+                    continuation.resume(returning: PaygateLaunchResult(status: .purchased, productId: productId, data: data))
                 case .error(let error):
                     continuation.resume(throwing: error)
                 }
@@ -161,14 +161,13 @@ public final class Paygate {
 
     /// Launch a gate, which randomly selects a flow based on configured weights.
     /// - Parameter gateId: The ID of the gate to present.
-    /// - Returns: The App Store product ID if purchased or already subscribed, `"channel_not_enabled"` if the
-    ///   current channel is not enabled for this gate, or `nil` if dismissed.
+    /// - Returns: A typed result with status, optional productId, and optional data.
     @MainActor
     public static func launchGate(
         _ gateId: String,
         bounces: Bool = false,
         presentationStyle: PaygatePresentationStyle = .sheet
-    ) async throws -> String? {
+    ) async throws -> PaygateLaunchResult {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
         }
@@ -185,19 +184,20 @@ public final class Paygate {
         if !response.gate.enabledChannels.isEmpty {
             let current = Paygate.currentChannel.rawValue
             if !response.gate.enabledChannels.contains(current) {
-                return "channel_not_enabled"
+                return PaygateLaunchResult(status: .channelNotEnabled)
             }
+        }
+
+        if !response.gate.showAgainAfterSkip && SkipPersistence.isSkipped(gateId: gateId) {
+            return PaygateLaunchResult(status: .skipped)
         }
 
         let flowData = response.flowData
         let gateIdMap = flowData.productIdMap
         let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
-        // productIdMap covers all products associated with this flow — both those
-        // listed in productIds and those only referenced in the HTML templates.
-        // Checking its values (App Store IDs) catches both cases.
         for storeId in gateIdMap.values {
             if activeIds.contains(storeId) {
-                return storeId
+                return PaygateLaunchResult(status: .alreadySubscribed, productId: storeId)
             }
         }
 
@@ -210,13 +210,16 @@ public final class Paygate {
                 flowData: flowData,
                 apiKey: apiKey,
                 baseURL: baseURL,
-                bounces: bounces
+                bounces: bounces,
+                gateId: gateId
             ) { result in
                 switch result {
-                case .dismissed:
-                    continuation.resume(returning: nil)
-                case .purchased(let productId, _):
-                    continuation.resume(returning: productId)
+                case .dismissed(let data):
+                    continuation.resume(returning: PaygateLaunchResult(status: .dismissed, data: data))
+                case .skipped(let data):
+                    continuation.resume(returning: PaygateLaunchResult(status: .skipped, data: data))
+                case .purchased(let productId, let data):
+                    continuation.resume(returning: PaygateLaunchResult(status: .purchased, productId: productId, data: data))
                 case .error(let error):
                     continuation.resume(throwing: error)
                 }
