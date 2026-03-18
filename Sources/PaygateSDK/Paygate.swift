@@ -7,7 +7,6 @@ public final class Paygate {
     public static let apiVersion = "2025-03-16"
 
     private static var apiKey: String?
-    /// API base URL. Override with baseURL in initialize() for local dev or custom deploy.
     private static var baseURL: String = "https://api-oh6xuuomca-uc.a.run.app"
     private static var flowCache: [String: FlowData] = [:]
     private static var gateCache: [String: GateFlowResponse] = [:]
