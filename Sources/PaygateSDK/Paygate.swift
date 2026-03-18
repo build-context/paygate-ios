@@ -188,10 +188,6 @@ public final class Paygate {
             }
         }
 
-        if !response.gate.showAgainAfterSkip && SkipPersistence.isSkipped(gateId: gateId) {
-            return PaygateLaunchResult(status: .skipped)
-        }
-
         let flowData = response.flowData
         let gateIdMap = flowData.productIdMap
         let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
@@ -205,13 +201,15 @@ public final class Paygate {
             throw PaygateError.noPresentingViewController
         }
 
+        let purchaseRequired = response.gate.requirePurchase
         return try await withCheckedThrowingContinuation { continuation in
             let paygateVC = PaygateViewController(
                 flowData: flowData,
                 apiKey: apiKey,
                 baseURL: baseURL,
                 bounces: bounces,
-                gateId: gateId
+                gateId: gateId,
+                purchaseRequired: purchaseRequired
             ) { result in
                 switch result {
                 case .dismissed(let data):

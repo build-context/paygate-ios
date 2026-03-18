@@ -10,6 +10,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let baseURL: String
     private let bounces: Bool
     private let gateId: String?
+    private let purchaseRequired: Bool
     private let productIdMap: [String: String]
     private let completion: (PaygateResult) -> Void
     private var didInvokeCompletion = false
@@ -22,6 +23,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         baseURL: String,
         bounces: Bool = false,
         gateId: String? = nil,
+        purchaseRequired: Bool = false,
         completion: @escaping (PaygateResult) -> Void
     ) {
         self.flowData = flowData
@@ -29,6 +31,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         self.baseURL = baseURL
         self.bounces = bounces
         self.gateId = gateId
+        self.purchaseRequired = purchaseRequired
         self.productIdMap = flowData.productIdMap
         self.completion = completion
         super.init(nibName: nil, bundle: nil)
@@ -157,10 +160,14 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
         case "skip":
             let data = body["data"] as? [String: Any]
-            if let gateId = gateId {
-                SkipPersistence.recordSkipped(gateId: gateId)
+            if purchaseRequired {
+                dismissFlow(result: .dismissed(data: data))
+            } else {
+                if let gateId = gateId {
+                    SkipPersistence.recordSkipped(gateId: gateId)
+                }
+                dismissFlow(result: .skipped(data: data))
             }
-            dismissFlow(result: .skipped(data: data))
 
         case "purchase":
             if let productId = body["productId"] as? String {
