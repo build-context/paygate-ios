@@ -59,6 +59,21 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         // Add JS bridge message handler
         let contentController = WKUserContentController()
         contentController.add(self, name: "paygate")
+
+        // Disable text selection in the paywall
+        let disableSelectionScript = WKUserScript(
+            source: """
+            (function() {
+                var style = document.createElement('style');
+                style.textContent = '* { -webkit-user-select: none !important; user-select: none !important; -webkit-touch-callout: none !important; }';
+                document.head.appendChild(style);
+            })();
+            """,
+            injectionTime: .atDocumentEnd,
+            forMainFrameOnly: true
+        )
+        contentController.addUserScript(disableSelectionScript)
+
         config.userContentController = contentController
 
         // Allow inline media playback

@@ -9,7 +9,7 @@ public final class Paygate {
     private static var apiKey: String?
     private static var baseURL: String = "https://api-oh6xuuomca-uc.a.run.app"
     private static var flowCache: [String: FlowData] = [:]
-    private static var gateCache: [String: FlowData] = [:]
+    private static var gateCache: [String: GateFlowResponse] = [:]
 
     static var flows: FlowRepository!
     static var gates: GateRepository!
@@ -71,6 +71,17 @@ public final class Paygate {
         }
     }
 
+    /// Current distribution channel (iOS).
+    public static var currentChannel: DistributionChannel {
+        #if DEBUG
+        return .debug
+        #else
+        return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
+            ? .testflight
+            : .production
+        #endif
+    }
+
     /// The set of App Store product IDs for which the user has an active subscription.
     public static var activeSubscriptionProductIDs: Set<String> {
         get async {
@@ -80,9 +91,7 @@ public final class Paygate {
 
     /// Launch a paywall flow.
     /// - Parameter flowId: The ID of the flow to present.
-    /// - Returns: The purchased product ID, or `nil` if the user dismissed without purchasing.
-    ///   If the user already has an active subscription for a product in this flow, returns
-    ///   that product's App Store ID immediately without showing the paywall.
+    /// - Returns: The App Store product ID if purchased or already subscribed, or `nil` if dismissed.
     @MainActor
     public static func launchFlow(
         _ flowId: String,
@@ -152,9 +161,8 @@ public final class Paygate {
 
     /// Launch a gate, which randomly selects a flow based on configured weights.
     /// - Parameter gateId: The ID of the gate to present.
-    /// - Returns: The purchased product ID, or `nil` if the user dismissed without purchasing.
-    ///   If the user already has an active subscription for a product in the selected flow,
-    ///   returns that product's App Store ID immediately without showing the paywall.
+    /// - Returns: The App Store product ID if purchased or already subscribed, `"channel_not_enabled"` if the
+    ///   current channel is not enabled for this gate, or `nil` if dismissed.
     @MainActor
     public static func launchGate(
         _ gateId: String,
@@ -165,15 +173,23 @@ public final class Paygate {
             throw PaygateError.notInitialized
         }
 
-        let flowData: FlowData
+        let response: GateFlowResponse
         if let cached = gateCache[gateId] {
-            flowData = cached
+            response = cached
         } else {
             let fetched = try await gates.getGate(gateId)
             gateCache[gateId] = fetched
-            flowData = fetched
+            response = fetched
         }
 
+        if !response.gate.enabledChannels.isEmpty {
+            let current = Paygate.currentChannel.rawValue
+            if !response.gate.enabledChannels.contains(current) {
+                return "channel_not_enabled"
+            }
+        }
+
+        let flowData = response.flowData
         let gateIdMap = flowData.productIdMap
         let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
         // productIdMap covers all products associated with this flow — both those
@@ -252,73 +268,5 @@ public final class Paygate {
             vc = presented
         }
         return vc
-    }
-}
-
-// MARK: - Models
-
-public struct FlowData: Codable {
-    public let id: String
-    public let name: String
-    public let htmlContent: String
-    public let productIds: [String]
-    public let products: [ProductData]?
-
-    /// Maps Paygate product IDs to App Store product IDs.
-    public var productIdMap: [String: String] {
-        var map: [String: String] = [:]
-        for product in products ?? [] {
-            if let appStoreId = product.appStoreId, !appStoreId.isEmpty {
-                map[product.id] = appStoreId
-            }
-        }
-        return map
-    }
-}
-
-public struct ProductData: Codable {
-    public let id: String
-    public let name: String
-    public let appStoreId: String?
-    public let playStoreId: String?
-}
-
-enum PaygateResult {
-    case dismissed
-    case purchased(productId: String)
-    case error(Error)
-}
-
-public enum PaygatePresentationStyle {
-    case fullScreen
-    case sheet
-}
-
-public enum PaygateError: LocalizedError {
-    case notInitialized
-    case invalidURL
-    case noData
-    case serverError(detail: String? = nil)
-    case noPresentingViewController
-    case productNotFound
-
-    public var errorDescription: String? {
-        switch self {
-        case .notInitialized:
-            return "Paygate SDK not initialized. Call Paygate.initialize(apiKey:) first."
-        case .invalidURL:
-            return "Invalid API URL."
-        case .noData:
-            return "No data received from server."
-        case .serverError(let detail):
-            if let detail, !detail.isEmpty {
-                return "Server returned an error: \(detail)"
-            }
-            return "Server returned an error."
-        case .noPresentingViewController:
-            return "No view controller available to present from."
-        case .productNotFound:
-            return "Product not found on the App Store."
-        }
     }
 }

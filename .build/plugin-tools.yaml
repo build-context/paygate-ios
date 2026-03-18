@@ -1,0 +1,47 @@
+client:
+  name: basic
+  file-system: device-agnostic
+tools: {}
+targets:
+  "PackageStructure": ["<PackageStructure>"]
+  "PaygateSDK-arm64-apple-macosx26.0-debug.module": ["<PaygateSDK-arm64-apple-macosx26.0-debug.module>"]
+  "main": ["<PaygateSDK-arm64-apple-macosx26.0-debug.module>"]
+  "test": ["<PaygateSDK-arm64-apple-macosx26.0-debug.module>"]
+default: "main"
+nodes:
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/":
+    is-directory-structure: true
+    content-exclusion-patterns: [".git",".build"]
+commands:
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/sources":
+    tool: write-auxiliary-file
+    inputs: ["<sources-file-list>","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Paygate.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateViewController.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/FlowRepository.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/GateRepository.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/PaygateRepository.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/ProductRepository.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/StoreKitManager.swift"]
+    outputs: ["/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/sources"]
+    description: "Write auxiliary file /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/sources"
+
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt":
+    tool: write-auxiliary-file
+    inputs: ["<swift-get-version>","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"]
+    outputs: ["/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"]
+    always-out-of-date: "true"
+    description: "Write auxiliary file /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+
+  "<PaygateSDK-arm64-apple-macosx26.0-debug.module>":
+    tool: phony
+    inputs: ["/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/Paygate.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/FlowRepository.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/GateRepository.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateRepository.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/ProductRepository.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/StoreKitManager.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/Modules/PaygateSDK.swiftmodule"]
+    outputs: ["<PaygateSDK-arm64-apple-macosx26.0-debug.module>"]
+
+  "C.PaygateSDK-arm64-apple-macosx26.0-debug.module":
+    tool: shell
+    inputs: ["/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Paygate.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateViewController.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/FlowRepository.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/GateRepository.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/PaygateRepository.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/ProductRepository.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/StoreKitManager.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/sources"]
+    outputs: ["/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/Paygate.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/FlowRepository.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/GateRepository.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateRepository.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/ProductRepository.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/StoreKitManager.swift.o","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/Modules/PaygateSDK.swiftmodule"]
+    description: "Compiling Swift Module 'PaygateSDK' (7 sources)"
+    args: ["/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc","-module-name","PaygateSDK","-emit-dependencies","-emit-module","-emit-module-path","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/Modules/PaygateSDK.swiftmodule","-output-file-map","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/output-file-map.json","-parse-as-library","-incremental","-c","@/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/sources","-I","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/Modules","-target","arm64-apple-macosx10.13","-incremental","-enable-batch-mode","-serialize-diagnostics","-index-store-path","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/index/store","-Onone","-enable-testing","-j14","-DSWIFT_PACKAGE","-DDEBUG","-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE","-module-cache-path","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/ModuleCache","-parseable-output","-parse-as-library","-emit-objc-header","-emit-objc-header-path","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/include/PaygateSDK-Swift.h","-swift-version","5","-plugin-path","/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing","-sdk","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-F","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-I","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-L","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib","-g","-Xcc","-isysroot","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks","-Xcc","-F","-Xcc","/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks","-Xcc","-fPIC","-Xcc","-g","-package-name","ios"]
+
+  "PackageStructure":
+    tool: package-structure-tool
+    inputs: ["/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Package.swift","/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Package.resolved"]
+    outputs: ["<PackageStructure>"]
+    description: "Planning build"
+    allow-missing-inputs: true
+
