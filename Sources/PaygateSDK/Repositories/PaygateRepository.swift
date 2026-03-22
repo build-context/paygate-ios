@@ -19,8 +19,7 @@ class PaygateRepository {
         }
 
         var request = URLRequest(url: url)
-        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        request.setValue(Paygate.apiVersion, forHTTPHeaderField: "Paygate-Version")
+        PaygateHTTP.applyDefaultHeaders(to: &request, apiKey: apiKey)
 
         let (data, response) = try await session.data(for: request)
 

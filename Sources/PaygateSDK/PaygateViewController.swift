@@ -230,8 +230,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
-        request.setValue(apiKey, forHTTPHeaderField: "X-API-Key")
-        request.setValue(Paygate.apiVersion, forHTTPHeaderField: "Paygate-Version")
+        PaygateHTTP.applyDefaultHeaders(to: &request, apiKey: apiKey)
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
 
         let body: [String: Any] = [
