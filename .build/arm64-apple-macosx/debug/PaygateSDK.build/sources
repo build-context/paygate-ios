@@ -1,7 +1,10 @@
 /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Paygate.swift
+/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateHTTP.swift
+/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateTypes.swift
 /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateViewController.swift
 /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/FlowRepository.swift
 /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/GateRepository.swift
 /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/PaygateRepository.swift
 /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/ProductRepository.swift
+/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/SkipPersistence.swift
 /Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/StoreKitManager.swift

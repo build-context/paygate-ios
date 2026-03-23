@@ -9,6 +9,20 @@
     "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/Paygate.swiftdeps",
     "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/Paygate.dia"
   },
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateHTTP.swift": {
+    "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateHTTP.d",
+    "object": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateHTTP.swift.o",
+    "swiftmodule": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateHTTP~partial.swiftmodule",
+    "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateHTTP.swiftdeps",
+    "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateHTTP.dia"
+  },
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateTypes.swift": {
+    "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateTypes.d",
+    "object": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateTypes.swift.o",
+    "swiftmodule": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateTypes~partial.swiftmodule",
+    "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateTypes.swiftdeps",
+    "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateTypes.dia"
+  },
   "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateViewController.swift": {
     "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController.d",
     "object": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController.swift.o",
@@ -43,6 +57,13 @@
     "swiftmodule": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/ProductRepository~partial.swiftmodule",
     "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/ProductRepository.swiftdeps",
     "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/ProductRepository.dia"
+  },
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/SkipPersistence.swift": {
+    "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/SkipPersistence.d",
+    "object": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/SkipPersistence.swift.o",
+    "swiftmodule": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/SkipPersistence~partial.swiftmodule",
+    "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/SkipPersistence.swiftdeps",
+    "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/SkipPersistence.dia"
   },
   "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/StoreKitManager.swift": {
     "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/StoreKitManager.d",
