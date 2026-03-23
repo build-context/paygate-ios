@@ -115,6 +115,8 @@ public enum PaygateLaunchStatus: String {
     case dismissed
     case skipped
     case channelNotEnabled
+    /// Monthly presentation quota exceeded for this project (`data` may include `used` and `limit`).
+    case planLimitReached
 }
 
 /// Typed result from launchFlow/launchGate.
@@ -151,6 +153,8 @@ public enum PaygateError: LocalizedError {
     case serverError(detail: String? = nil)
     case noPresentingViewController
     case productNotFound
+    /// Monthly presentation quota exceeded (HTTP 403, `code: presentation_limit_exceeded`).
+    case presentationLimitExceeded(used: Int?, limit: Int?)
 
     public var errorDescription: String? {
         switch self {
@@ -169,6 +173,12 @@ public enum PaygateError: LocalizedError {
             return "No view controller available to present from."
         case .productNotFound:
             return "Product not found on the App Store."
+        case .presentationLimitExceeded(let used, let limit):
+            var parts: [String] = ["Presentation limit reached for this billing period."]
+            if let u = used, let l = limit {
+                parts.append("Used \(u) of \(l).")
+            }
+            return parts.joined(separator: " ")
         }
     }
 }

@@ -146,11 +146,21 @@ public final class Paygate {
         if let cached = gateCache[gateId] {
             response = cached
         } else {
-            let fetched = try await gates.getGate(gateId)
-            if fetched.gate.launchCache == "cache_on_first_launch" {
-                gateCache[gateId] = fetched
+            do {
+                let fetched = try await gates.getGate(gateId)
+                if fetched.gate.launchCache == "cache_on_first_launch" {
+                    gateCache[gateId] = fetched
+                }
+                response = fetched
+            } catch let error as PaygateError {
+                if case .presentationLimitExceeded(let used, let limit) = error {
+                    var data: [String: Any] = [:]
+                    if let u = used { data["used"] = u }
+                    if let l = limit { data["limit"] = l }
+                    return PaygateLaunchResult(status: .planLimitReached, data: data.isEmpty ? nil : data)
+                }
+                throw error
             }
-            response = fetched
         }
 
         if !response.gate.enabledChannels.isEmpty {
