@@ -15,6 +15,8 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let productIdMap: [String: String]
     private let completion: (PaygateResult) -> Void
     private var didInvokeCompletion = false
+    /// Gate sessions only: local buffer + single flush to `POST /sdk/presentations`.
+    private var eventBuffer: PresentationEventBuffer?
     private var webView: WKWebView!
     private var spinner: UIActivityIndicatorView!
 
@@ -47,6 +49,14 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     public override func viewDidLoad() {
         super.viewDidLoad()
         view.backgroundColor = .black
+        if let gid = gateId {
+            eventBuffer = PresentationEventBuffer(
+                gateId: gid,
+                flowId: flowData.id,
+                apiKey: apiKey,
+                baseURL: baseURL
+            )
+        }
         setupWebView()
         setupSpinner()
         loadFlowContent()
@@ -164,10 +174,12 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
         switch action {
         case "close":
+            eventBuffer?.append(eventType: "bridge_close", metadata: [:])
             let data = body["data"] as? [String: Any]
             dismissFlow(result: .dismissed(data: data))
 
         case "skip":
+            eventBuffer?.append(eventType: "bridge_skip", metadata: [:])
             let data = body["data"] as? [String: Any]
             if purchaseRequired {
                 dismissFlow(result: .dismissed(data: data))
@@ -194,6 +206,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private func invokeCompletionOnce(_ result: PaygateResult) {
         guard !didInvokeCompletion else { return }
         didInvokeCompletion = true
+        eventBuffer?.finalizeAndFlush(result: result)
         completion(result)
     }
 
@@ -206,14 +219,22 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         let storeProductId = productIdMap[productId] ?? productId
         print("[Paygate] Purchase requested: \(productId) → App Store ID: \(storeProductId)")
 
-        trackEvent(eventType: "purchase_initiated", metadata: ["productId": productId])
+        if eventBuffer != nil {
+            eventBuffer?.append(eventType: "purchase_initiated", metadata: ["productId": productId])
+        } else {
+            trackEventHTTP(eventType: "purchase_initiated", metadata: ["productId": productId])
+        }
 
         Task {
             do {
                 let purchased = try await StoreKitManager.shared.purchase(storeProductId)
                 if let purchasedId = purchased {
                     print("[Paygate] Purchase completed: \(purchasedId)")
-                    trackEvent(eventType: "purchase_completed", metadata: ["productId": purchasedId])
+                    if eventBuffer != nil {
+                        eventBuffer?.append(eventType: "purchase_completed", metadata: ["productId": purchasedId])
+                    } else {
+                        trackEventHTTP(eventType: "purchase_completed", metadata: ["productId": purchasedId])
+                    }
                     dismissFlow(result: .purchased(productId: purchasedId, data: data))
                 } else {
                     print("[Paygate] Purchase cancelled by user")
@@ -225,7 +246,8 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         }
     }
 
-    private func trackEvent(eventType: String, metadata: [String: String] = [:]) {
+    /// Flow-only sessions (no gate): legacy per-event HTTP. Gate sessions use `PresentationEventBuffer`.
+    private func trackEventHTTP(eventType: String, metadata: [String: String] = [:]) {
         guard let url = URL(string: "\(baseURL)/sdk/flows/\(flowData.id)/events") else { return }
 
         var request = URLRequest(url: url)

@@ -39,6 +39,10 @@ public final class Paygate {
         await StoreKitManager.shared.loadPurchasedProducts()
         let ids = await StoreKitManager.shared.activeSubscriptionProductIDs
         print("[Paygate] Active subscription product IDs:", ids.sorted().joined(separator: ", "))
+
+        Task {
+            await PresentationAnalytics.flushPendingOutbox(apiKey: apiKey, baseURL: self.baseURL)
+        }
     }
 
     /// Current distribution channel (iOS).

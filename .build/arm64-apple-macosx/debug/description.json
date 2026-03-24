@@ -24,6 +24,10 @@
       "inputs" : [
         {
           "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/OutboxStore.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Paygate.swift"
         },
         {
@@ -37,6 +41,14 @@
         {
           "kind" : "file",
           "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateViewController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PendingPresentation.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PresentationAnalytics.swift"
         },
         {
           "kind" : "file",
@@ -75,10 +87,13 @@
       "moduleName" : "PaygateSDK",
       "moduleOutputPath" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/Modules/PaygateSDK.swiftmodule",
       "objects" : [
+        "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/OutboxStore.swift.o",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/Paygate.swift.o",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateHTTP.swift.o",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateTypes.swift.o",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController.swift.o",
+        "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PendingPresentation.swift.o",
+        "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PresentationAnalytics.swift.o",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/FlowRepository.swift.o",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/GateRepository.swift.o",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateRepository.swift.o",
@@ -145,6 +160,10 @@
       "outputs" : [
         {
           "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/OutboxStore.swift.o"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/Paygate.swift.o"
         },
         {
@@ -158,6 +177,14 @@
         {
           "kind" : "file",
           "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PendingPresentation.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PresentationAnalytics.swift.o"
         },
         {
           "kind" : "file",
@@ -190,10 +217,13 @@
       ],
       "prepareForIndexing" : false,
       "sources" : [
+        "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/OutboxStore.swift",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Paygate.swift",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateHTTP.swift",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateTypes.swift",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateViewController.swift",
+        "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PendingPresentation.swift",
+        "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PresentationAnalytics.swift",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/FlowRepository.swift",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/GateRepository.swift",
         "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/PaygateRepository.swift",
@@ -216,10 +246,13 @@
       "-package-name",
       "ios",
       "-c",
+      "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/OutboxStore.swift",
       "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Paygate.swift",
       "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateHTTP.swift",
       "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateTypes.swift",
       "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateViewController.swift",
+      "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PendingPresentation.swift",
+      "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PresentationAnalytics.swift",
       "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/FlowRepository.swift",
       "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/GateRepository.swift",
       "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/PaygateRepository.swift",
@@ -311,6 +344,10 @@
         },
         {
           "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/OutboxStore.swift"
+        },
+        {
+          "kind" : "file",
           "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Paygate.swift"
         },
         {
@@ -324,6 +361,14 @@
         {
           "kind" : "file",
           "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PaygateViewController.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PendingPresentation.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PresentationAnalytics.swift"
         },
         {
           "kind" : "file",

@@ -2,6 +2,13 @@
   "": {
     "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/master.swiftdeps"
   },
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/OutboxStore.swift": {
+    "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/OutboxStore.d",
+    "object": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/OutboxStore.swift.o",
+    "swiftmodule": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/OutboxStore~partial.swiftmodule",
+    "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/OutboxStore.swiftdeps",
+    "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/OutboxStore.dia"
+  },
   "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Paygate.swift": {
     "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/Paygate.d",
     "object": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/Paygate.swift.o",
@@ -29,6 +36,20 @@
     "swiftmodule": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController~partial.swiftmodule",
     "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController.swiftdeps",
     "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PaygateViewController.dia"
+  },
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PendingPresentation.swift": {
+    "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PendingPresentation.d",
+    "object": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PendingPresentation.swift.o",
+    "swiftmodule": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PendingPresentation~partial.swiftmodule",
+    "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PendingPresentation.swiftdeps",
+    "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PendingPresentation.dia"
+  },
+  "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/PresentationAnalytics.swift": {
+    "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PresentationAnalytics.d",
+    "object": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PresentationAnalytics.swift.o",
+    "swiftmodule": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PresentationAnalytics~partial.swiftmodule",
+    "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PresentationAnalytics.swiftdeps",
+    "diagnostics": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/PresentationAnalytics.dia"
   },
   "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/Repositories/FlowRepository.swift": {
     "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/FlowRepository.d",
