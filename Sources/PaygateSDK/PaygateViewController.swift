@@ -194,6 +194,8 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
             if let productId = body["productId"] as? String {
                 let data = body["data"] as? [String: Any]
                 handlePurchase(productId: productId, data: data)
+            } else if body["productId"] != nil {
+                print("[Paygate] purchase ignored: productId must be a string, got \(String(describing: body["productId"]))")
             }
 
         default:
