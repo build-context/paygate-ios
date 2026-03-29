@@ -1,6 +1,6 @@
 {
   "": {
-    "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/master.swiftdeps"
+    "swift-dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/primary.swiftdeps"
   },
   "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/Sources/PaygateSDK/OutboxStore.swift": {
     "dependencies": "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/OutboxStore.d",

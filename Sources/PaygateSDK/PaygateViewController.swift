@@ -60,6 +60,17 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         setupWebView()
         setupSpinner()
         loadFlowContent()
+
+        print("[Paygate] Flow loaded: id=\(flowData.id) productIds=\(flowData.productIds) productIdMap=\(productIdMap)")
+        let storeIds = Array(Set(productIdMap.values)).filter { !$0.isEmpty }
+        if storeIds.isEmpty {
+            print("[Paygate] ⚠️ No App Store product IDs resolved for this flow. " +
+                  "Purchases will fail unless the bridge sends raw App Store IDs. " +
+                  "Check that products are configured with appStoreId in the Paygate dashboard.")
+        }
+        Task {
+            await StoreKitManager.shared.logAppStoreProducts(for: storeIds)
+        }
     }
 
     public override func viewDidDisappear(_ animated: Bool) {
@@ -194,8 +205,14 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
             if let productId = body["productId"] as? String {
                 let data = body["data"] as? [String: Any]
                 handlePurchase(productId: productId, data: data)
-            } else if body["productId"] != nil {
-                print("[Paygate] purchase ignored: productId must be a string, got \(String(describing: body["productId"]))")
+            } else {
+                let raw = body["productId"]
+                if raw == nil {
+                    print("[Paygate] purchase ignored: productId is missing from the bridge message. " +
+                          "Ensure your HTML calls paygate.purchase(productId) with a valid product ID string.")
+                } else {
+                    print("[Paygate] purchase ignored: productId must be a string, got \(type(of: raw!))=\(String(describing: raw!))")
+                }
             }
 
         case "restore":
@@ -259,7 +276,16 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
     private func handlePurchase(productId: String, data: [String: Any]? = nil) {
         let storeProductId = productIdMap[productId] ?? productId
-        print("[Paygate] Purchase requested: \(productId) → App Store ID: \(storeProductId)")
+        let wasResolved = productIdMap[productId] != nil
+        print("[Paygate] Purchase requested: paygateId=\(productId) → appStoreId=\(storeProductId) resolved=\(wasResolved)")
+        if productIdMap.isEmpty {
+            print("[Paygate] ⚠️ productIdMap is empty — no Paygate→AppStore ID mappings exist. " +
+                  "This means the backend returned no products with appStoreId set, or the products array was nil. " +
+                  "The raw productId from the bridge (\"\(productId)\") will be sent directly to StoreKit.")
+        } else if !wasResolved {
+            print("[Paygate] ⚠️ productId \"\(productId)\" not found in productIdMap keys: \(productIdMap.keys.sorted()). " +
+                  "Falling back to using it as-is with StoreKit.")
+        }
 
         if eventBuffer != nil {
             eventBuffer?.append(eventType: "purchase_initiated", metadata: ["productId": productId])

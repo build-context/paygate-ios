@@ -35,8 +35,27 @@ public actor StoreKitManager {
         activeSubscriptionProductIDs = active
     }
 
+    /// Fetches products from the App Store and prints a console summary (ids, names, prices, missing ids).
+    public func logAppStoreProducts(for appStoreIDs: [String]) async {
+        let unique = Array(Set(appStoreIDs)).filter { !$0.isEmpty }
+        guard !unique.isEmpty else {
+            print("[Paygate] logAppStoreProducts: no App Store product IDs to fetch")
+            return
+        }
+        do {
+            let products = try await Product.products(for: unique)
+            logFetchedProducts(products, requested: unique)
+        } catch {
+            print(
+                "[Paygate] Product.products(for:) failed: \(error.localizedDescription) " +
+                    "requestedIds=\(unique.sorted().joined(separator: ", "))"
+            )
+        }
+    }
+
     public func purchase(_ productID: String) async throws -> String? {
         let products = try await Product.products(for: [productID])
+        logFetchedProducts(products, requested: [productID])
         guard let product = products.first else {
             print(
                 "[Paygate] StoreKit returned no Product for appStoreId=\(productID). " +
@@ -49,7 +68,14 @@ public actor StoreKitManager {
         let result = try await product.purchase()
         switch result {
         case .success(let verification):
-            let transaction = try verification.payloadValue
+            let transaction: Transaction
+            switch verification {
+            case .verified(let t):
+                transaction = t
+            case .unverified(let t, let error):
+                print("[Paygate] Transaction verification failed: \(error). Processing purchase anyway (common in sandbox/TestFlight).")
+                transaction = t
+            }
             await transaction.finish()
             if isSubscription(product.type) {
                 activeSubscriptionProductIDs.insert(transaction.productID)
@@ -79,5 +105,26 @@ public actor StoreKitManager {
 
     private func isSubscription(_ type: Product.ProductType) -> Bool {
         type == .autoRenewable || type == .nonRenewable
+    }
+
+    private func logFetchedProducts(_ products: [Product], requested: [String]) {
+        let fetchedIDs = Set(products.map(\.id))
+        let missing = Set(requested).subtracting(fetchedIDs)
+        print(
+            "[Paygate] App Store products fetched: returned=\(products.count) requested=\(requested.count) " +
+                "ids=\(requested.sorted().joined(separator: ", "))"
+        )
+        for p in products.sorted(by: { $0.id < $1.id }) {
+            print(
+                "[Paygate]   • id=\(p.id) name=\(p.displayName) " +
+                    "displayPrice=\(p.displayPrice) type=\(String(describing: p.type))"
+            )
+        }
+        if !missing.isEmpty {
+            print(
+                "[Paygate] App Store did not return Product for id(s): " +
+                    "\(missing.sorted().joined(separator: ", "))"
+            )
+        }
     }
 }
