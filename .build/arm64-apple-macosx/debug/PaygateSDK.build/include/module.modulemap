@@ -1,3 +1,0 @@
-module PaygateSDK {
-    header "/Users/michaelmiller/Desktop/build_context/paygate/sdks/ios/.build/arm64-apple-macosx/debug/PaygateSDK.build/include/PaygateSDK-Swift.h"
-}
