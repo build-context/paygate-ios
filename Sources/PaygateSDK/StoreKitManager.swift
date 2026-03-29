@@ -17,6 +17,12 @@ public actor StoreKitManager {
         }
     }
 
+    /// Refreshes transactions from the App Store and updates `activeSubscriptionProductIDs`.
+    public func syncPurchases() async throws {
+        try await AppStore.sync()
+        await loadPurchasedProducts()
+    }
+
     public func loadPurchasedProducts() async {
         var active: Set<String> = []
         for await result in Transaction.currentEntitlements {
@@ -32,6 +38,11 @@ public actor StoreKitManager {
     public func purchase(_ productID: String) async throws -> String? {
         let products = try await Product.products(for: [productID])
         guard let product = products.first else {
+            print(
+                "[Paygate] StoreKit returned no Product for appStoreId=\(productID). " +
+                    "Confirm this exact ID exists in App Store Connect for this app's bundle ID, is cleared for sale / sandbox testing, " +
+                    "and (for local runs) the Xcode scheme has a StoreKit Configuration file attached."
+            )
             throw PaygateError.productNotFound
         }
 

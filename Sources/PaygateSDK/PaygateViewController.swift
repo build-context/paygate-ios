@@ -198,6 +198,11 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
                 print("[Paygate] purchase ignored: productId must be a string, got \(String(describing: body["productId"]))")
             }
 
+        case "restore":
+            eventBuffer?.append(eventType: "bridge_restore", metadata: [:])
+            let data = body["data"] as? [String: Any]
+            handleRestore(data: data)
+
         default:
             print("[Paygate] Unknown action: \(action)")
         }
@@ -215,6 +220,41 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private func dismissFlow(result: PaygateResult) {
         invokeCompletionOnce(result)
         dismiss(animated: true)
+    }
+
+    private func handleRestore(data: [String: Any]? = nil) {
+        Task {
+            do {
+                try await StoreKitManager.shared.syncPurchases()
+                let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
+                for paygateProductId in flowData.productIds {
+                    let storeId = productIdMap[paygateProductId] ?? paygateProductId
+                    if activeIds.contains(storeId) {
+                        if eventBuffer != nil {
+                            eventBuffer?.append(
+                                eventType: "restore_completed",
+                                metadata: ["productId": paygateProductId, "appStoreProductId": storeId]
+                            )
+                        } else {
+                            trackEventHTTP(
+                                eventType: "restore_completed",
+                                metadata: ["productId": paygateProductId, "appStoreProductId": storeId]
+                            )
+                        }
+                        dismissFlow(result: .purchased(productId: storeId, data: data))
+                        return
+                    }
+                }
+                print("[Paygate] Restore: no active subscription for this flow's products")
+                eventBuffer?.append(eventType: "restore_no_entitlement", metadata: [:])
+            } catch {
+                print("[Paygate] Restore error: \(error.localizedDescription)")
+                eventBuffer?.append(
+                    eventType: "restore_error",
+                    metadata: ["message": error.localizedDescription]
+                )
+            }
+        }
     }
 
     private func handlePurchase(productId: String, data: [String: Any]? = nil) {
