@@ -6,11 +6,52 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions:
+  contents: read
+
 jobs:
-  swift:
+  build:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      # UIKit / StoreKit require an iOS destination; plain `swift build` targets macOS and cannot import UIKit.
       - name: Build for iOS Simulator
         run: xcodebuild -scheme PaygateSDK -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+
+  release:
+    needs: build
+    if: github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    runs-on: macos-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Detect version and tag status
+        id: ver
+        run: |
+          VERSION=$(tr -d '[:space:]' < VERSION)
+          if git tag -l "v${VERSION}" | grep -q .; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          fi
+      - name: Publish to CocoaPods trunk
+        if: steps.ver.outputs.changed == 'true'
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: |
+          if [ -z "${COCOAPODS_TRUNK_TOKEN:-}" ]; then
+            echo "::notice::COCOAPODS_TRUNK_TOKEN not set; skipping pod trunk push"
+            exit 0
+          fi
+          gem install cocoapods --no-document
+          pod trunk push PaygateSDK.podspec --allow-warnings
+      - name: Create and push release tag
+        if: steps.ver.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git tag -a "v${{ steps.ver.outputs.version }}" -m "v${{ steps.ver.outputs.version }}"
+          git push origin "v${{ steps.ver.outputs.version }}"
