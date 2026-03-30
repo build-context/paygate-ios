@@ -2,20 +2,20 @@
 import PackageDescription
 
 let package = Package(
-    name: "PaygateSDK",
+    name: "Paygate",
     platforms: [
         .iOS(.v15)
     ],
     products: [
         .library(
-            name: "PaygateSDK",
-            targets: ["PaygateSDK"]
+            name: "Paygate",
+            targets: ["Paygate"]
         ),
     ],
     targets: [
         .target(
-            name: "PaygateSDK",
-            path: "Sources/PaygateSDK"
+            name: "Paygate",
+            path: "Sources/Paygate"
         ),
     ]
 )

@@ -13,9 +13,9 @@ jobs:
   build:
     runs-on: macos-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
       - name: Build for iOS Simulator
-        run: xcodebuild -scheme PaygateSDK -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
+        run: xcodebuild -scheme Paygate -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
 
   release:
     needs: build
@@ -24,7 +24,7 @@ jobs:
     permissions:
       contents: write
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v6
         with:
           fetch-depth: 0
       - name: Detect version and tag status
@@ -47,7 +47,7 @@ jobs:
             exit 0
           fi
           gem install cocoapods --no-document
-          pod trunk push PaygateSDK.podspec --allow-warnings
+          pod trunk push Paygate.podspec --allow-warnings
       - name: Create and push release tag
         if: steps.ver.outputs.changed == 'true'
         run: |
