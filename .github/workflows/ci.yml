@@ -10,4 +10,6 @@ jobs:
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
-      - run: swift build
+      # UIKit / StoreKit require an iOS destination; plain `swift build` targets macOS and cannot import UIKit.
+      - name: Build for iOS Simulator
+        run: xcodebuild -scheme PaygateSDK -destination 'generic/platform=iOS Simulator' CODE_SIGNING_ALLOWED=NO build
