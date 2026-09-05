@@ -7,7 +7,7 @@ public final class Paygate {
     public static let apiVersion = "2025-03-16"
 
     private static var apiKey: String?
-    private static var baseURL: String = "https://api-oh6xuuomca-uc.a.run.app"
+    private static var baseURL: String = "https://api-crtw3ydz4q-uc.a.run.app"
     private static var flowCache: [String: FlowData] = [:]
     private static var gateCache: [String: GateFlowResponse] = [:]
 
