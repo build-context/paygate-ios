@@ -8,13 +8,42 @@ public enum DistributionChannel: String {
     case debug
 }
 
+// MARK: - Appearance
+
+/// Which color scheme a flow renders in.
+///
+/// A `WKWebView`'s `prefers-color-scheme` follows the operating system, not
+/// your app — so an app with its own light/dark setting shows a paywall that
+/// can disagree with the screen behind it. Pinning this fixes that.
+///
+/// Set on the gate in the Paygate console, and overridable per launch: an
+/// appearance passed to ``Paygate/launchGate(_:bounces:presentationStyle:appearance:)``
+/// wins, because only the app knows whether it has a theme preference of its own.
+public enum PaygateAppearance: String, Sendable {
+    /// Follow the device's light/dark setting. The default.
+    case system
+    /// Render light regardless of the device setting.
+    case light
+    /// Render dark regardless of the device setting.
+    case dark
+
+    /// Parses a server value, falling back to ``system`` for anything
+    /// unrecognized — an API that grows a fourth value must not break a paywall
+    /// built against three.
+    init(serverValue: String?) {
+        self = PaygateAppearance(rawValue: serverValue?.lowercased() ?? "") ?? .system
+    }
+}
+
 // MARK: - Gate
 
-/// Gate-level metadata (enabledChannels, requirePurchase, launchCache live on gates, not flows).
+/// Gate-level metadata (enabledChannels, requirePurchase, launchCache and
+/// appearance live on gates, not flows).
 public struct GateData {
     public let enabledChannels: [String]
     public let requirePurchase: Bool
     public let launchCache: String
+    public let appearance: PaygateAppearance
 }
 
 /// Response from the gate SDK endpoint: selected flow content plus gate metadata.
@@ -24,6 +53,7 @@ public struct GateFlowResponse: Decodable {
     public let enabledChannels: [String]
     public let requirePurchase: Bool
     public let launchCache: String
+    public let appearance: PaygateAppearance
 
     public let id: String
     public let name: String
@@ -33,7 +63,7 @@ public struct GateFlowResponse: Decodable {
     public let products: [ProductData]?
 
     private enum CodingKeys: String, CodingKey {
-        case gateId, selectedFlowId, enabledChannels, requirePurchase, launchCache
+        case gateId, selectedFlowId, enabledChannels, requirePurchase, launchCache, appearance
         case id, name, pages, bridgeScript, productIds, products
     }
 
@@ -50,6 +80,7 @@ public struct GateFlowResponse: Decodable {
             requirePurchase = false
         }
         launchCache = try c.decodeIfPresent(String.self, forKey: .launchCache) ?? "cache_on_first_launch"
+        appearance = PaygateAppearance(serverValue: try? c.decodeIfPresent(String.self, forKey: .appearance))
         id = try c.decode(String.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
         pages = try c.decodeIfPresent([FlowPage].self, forKey: .pages) ?? []
@@ -60,7 +91,7 @@ public struct GateFlowResponse: Decodable {
 
     /// Gate metadata.
     public var gate: GateData {
-        GateData(enabledChannels: enabledChannels, requirePurchase: requirePurchase, launchCache: launchCache)
+        GateData(enabledChannels: enabledChannels, requirePurchase: requirePurchase, launchCache: launchCache, appearance: appearance)
     }
 
     /// Flow content for presentation.

@@ -12,6 +12,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let gateId: String?
     private let purchaseRequired: Bool
     private let disableWebViewCache: Bool
+    private let appearance: PaygateAppearance
     private let productIdMap: [String: String]
     private let completion: (PaygateResult) -> Void
     private var didInvokeCompletion = false
@@ -28,6 +29,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         gateId: String? = nil,
         purchaseRequired: Bool = false,
         disableWebViewCache: Bool = false,
+        appearance: PaygateAppearance = .system,
         completion: @escaping (PaygateResult) -> Void
     ) {
         self.flowData = flowData
@@ -37,6 +39,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         self.gateId = gateId
         self.purchaseRequired = purchaseRequired
         self.disableWebViewCache = disableWebViewCache
+        self.appearance = appearance
         self.productIdMap = flowData.productIdMap
         self.completion = completion
         super.init(nibName: nil, bundle: nil)
@@ -48,7 +51,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
     public override func viewDidLoad() {
         super.viewDidLoad()
-        view.backgroundColor = .black
+        applyAppearance()
         if let gid = gateId {
             eventBuffer = PresentationEventBuffer(
                 gateId: gid,
@@ -82,6 +85,39 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     }
 
     // MARK: - Setup
+
+    /// Pins the color scheme the flow renders in.
+    ///
+    /// `overrideUserInterfaceStyle` is what actually moves `prefers-color-scheme`
+    /// inside the WebView: WebKit reads it from the view's trait collection, not
+    /// from the device setting, so the flow's existing
+    /// `@media (prefers-color-scheme: dark)` rules resolve against this. That is
+    /// why pinning happens here rather than by injecting CSS — injected CSS
+    /// cannot change which media queries match.
+    ///
+    /// Set on the view controller so it inherits down to the WebView and the
+    /// spinner together, and before `setupWebView()` so the first paint is
+    /// already correct.
+    private func applyAppearance() {
+        switch appearance {
+        case .system:
+            // Left as-is rather than set to .unspecified: a host app that pins
+            // its own window style should keep winning when the gate has no
+            // opinion, and .unspecified would only re-derive the same value.
+            //
+            // Black matches the pre-appearance behavior — the color behind a
+            // flow that has not painted yet.
+            view.backgroundColor = .black
+        case .light:
+            overrideUserInterfaceStyle = .light
+            // White, not black: a black flash before a light paywall paints
+            // reads as a broken screen.
+            view.backgroundColor = .white
+        case .dark:
+            overrideUserInterfaceStyle = .dark
+            view.backgroundColor = .black
+        }
+    }
 
     private func setupWebView() {
         let config = WKWebViewConfiguration()

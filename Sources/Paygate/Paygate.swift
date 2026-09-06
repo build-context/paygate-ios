@@ -64,13 +64,18 @@ public final class Paygate {
     }
 
     /// Launch a paywall flow.
-    /// - Parameter flowId: The ID of the flow to present.
+    /// - Parameters:
+    ///   - flowId: The ID of the flow to present.
+    ///   - appearance: Color scheme to pin the flow to. Flows carry no
+    ///     appearance of their own — that setting lives on the gate — so this
+    ///     defaults to `.system`, which follows the device.
     /// - Returns: A typed result with status, optional productId, and optional data.
     @MainActor
     public static func launchFlow(
         _ flowId: String,
         bounces: Bool = false,
-        presentationStyle: PaygatePresentationStyle = .sheet
+        presentationStyle: PaygatePresentationStyle = .sheet,
+        appearance: PaygateAppearance = .system
     ) async throws -> PaygateLaunchResult {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
@@ -103,7 +108,8 @@ public final class Paygate {
                 apiKey: apiKey,
                 baseURL: baseURL,
                 bounces: bounces,
-                gateId: nil
+                gateId: nil,
+                appearance: appearance
             ) { result in
                 switch result {
                 case .dismissed(let data):
@@ -134,13 +140,20 @@ public final class Paygate {
     }
 
     /// Launch a gate, which randomly selects a flow based on configured weights.
-    /// - Parameter gateId: The ID of the gate to present.
+    /// - Parameters:
+    ///   - gateId: The ID of the gate to present.
+    ///   - appearance: Overrides the appearance configured on the gate. Pass
+    ///     this when your app has its own light/dark setting: a WebView follows
+    ///     the device, not your app, so leaving it to the gate means the paywall
+    ///     can disagree with the screen behind it. `nil` (the default) uses
+    ///     whatever the gate is set to.
     /// - Returns: A typed result with status, optional productId, and optional data.
     @MainActor
     public static func launchGate(
         _ gateId: String,
         bounces: Bool = false,
-        presentationStyle: PaygatePresentationStyle = .sheet
+        presentationStyle: PaygatePresentationStyle = .sheet,
+        appearance: PaygateAppearance? = nil
     ) async throws -> PaygateLaunchResult {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
@@ -189,6 +202,9 @@ public final class Paygate {
 
         let purchaseRequired = response.gate.requirePurchase
         let disableWebViewCache = response.gate.launchCache == "refresh_on_launch"
+        // The caller wins. Only the app knows whether it has a theme setting of
+        // its own, and the gate's value is a default for the apps that do not.
+        let resolvedAppearance = appearance ?? response.gate.appearance
         return try await withCheckedThrowingContinuation { continuation in
             let paygateVC = PaygateViewController(
                 flowData: flowData,
@@ -197,7 +213,8 @@ public final class Paygate {
                 bounces: bounces,
                 gateId: gateId,
                 purchaseRequired: purchaseRequired,
-                disableWebViewCache: disableWebViewCache
+                disableWebViewCache: disableWebViewCache,
+                appearance: resolvedAppearance
             ) { result in
                 switch result {
                 case .dismissed(let data):
