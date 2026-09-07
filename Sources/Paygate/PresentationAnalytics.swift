@@ -7,7 +7,7 @@ final class PresentationEventBuffer {
     private let apiKey: String
     private let baseURL: String
 
-    init(gateId: String, flowId: String, apiKey: String, baseURL: String) {
+    init(gateId: String, flowId: String, apiKey: String, baseURL: String, storefront: String?) {
         let openedAt = Int64(Date().timeIntervalSince1970 * 1000)
         let batchId = UUID().uuidString
         self.pending = PendingPresentation(
@@ -17,6 +17,7 @@ final class PresentationEventBuffer {
             openedAt: openedAt,
             closedAt: nil,
             dismissReason: nil,
+            storefront: storefront,
             events: [
                 PresentationEvent(
                     eventType: "gate_opened",

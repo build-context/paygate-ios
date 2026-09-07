@@ -10,6 +10,8 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let baseURL: String
     private let bounces: Bool
     private let gateId: String?
+    /// Store country this flow's prices were resolved for, when known.
+    private let storefront: String?
     private let purchaseRequired: Bool
     private let disableWebViewCache: Bool
     private let appearance: PaygateAppearance
@@ -30,6 +32,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         purchaseRequired: Bool = false,
         disableWebViewCache: Bool = false,
         appearance: PaygateAppearance = .system,
+        storefront: String? = nil,
         completion: @escaping (PaygateResult) -> Void
     ) {
         self.flowData = flowData
@@ -40,6 +43,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         self.purchaseRequired = purchaseRequired
         self.disableWebViewCache = disableWebViewCache
         self.appearance = appearance
+        self.storefront = storefront
         self.productIdMap = flowData.productIdMap
         self.completion = completion
         super.init(nibName: nil, bundle: nil)
@@ -57,7 +61,8 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
                 gateId: gid,
                 flowId: flowData.id,
                 apiKey: apiKey,
-                baseURL: baseURL
+                baseURL: baseURL,
+                storefront: storefront
             )
         }
         setupWebView()

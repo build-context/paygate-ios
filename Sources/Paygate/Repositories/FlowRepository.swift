@@ -2,7 +2,8 @@ import Foundation
 
 class FlowRepository: PaygateRepository {
 
-    func getFlow(_ flowId: String) async throws -> FlowData {
-        try await get("/sdk/flows/\(flowId)")
+    /// - Parameter storefront: Store country to price the flow for, when known.
+    func getFlow(_ flowId: String, storefront: String? = nil) async throws -> FlowData {
+        try await get("/sdk/flows/\(flowId)", storefront: storefront)
     }
 }

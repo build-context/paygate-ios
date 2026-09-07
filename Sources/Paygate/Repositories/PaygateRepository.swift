@@ -13,13 +13,16 @@ class PaygateRepository {
         self.decoder = JSONDecoder()
     }
 
-    func get<T: Decodable>(_ path: String) async throws -> T {
+    /// - Parameter storefront: Store country to price this render for, when
+    ///   known. Only the render calls pass one.
+    func get<T: Decodable>(_ path: String, storefront: String? = nil) async throws -> T {
         guard let url = URL(string: "\(baseURL)\(path)") else {
             throw PaygateError.invalidURL
         }
 
         var request = URLRequest(url: url)
         PaygateHTTP.applyDefaultHeaders(to: &request, apiKey: apiKey)
+        PaygateHTTP.applyStorefront(to: &request, storefront: storefront)
 
         let (data, response) = try await session.data(for: request)
 

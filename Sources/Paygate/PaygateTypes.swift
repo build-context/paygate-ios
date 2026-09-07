@@ -37,22 +37,90 @@ public enum PaygateAppearance: String, Sendable {
 
 // MARK: - Gate
 
-/// Gate-level metadata (enabledChannels, requirePurchase, launchCache and
-/// appearance live on gates, not flows).
+/// How the SDK caches a gate's content on a given channel.
+public enum PaygateLaunchCache: String, Sendable {
+    /// Fetch once, then reuse for the rest of the process. The default.
+    case cacheOnFirstLaunch = "cache_on_first_launch"
+    /// Re-fetch on every launch, so console edits appear without a reinstall.
+    case refreshOnLaunch = "refresh_on_launch"
+
+    /// Parses a server value, falling back to ``cacheOnFirstLaunch`` for
+    /// anything unrecognized — an API that grows a third value must not break a
+    /// paywall built against two.
+    init(serverValue: String?) {
+        self = PaygateLaunchCache(rawValue: serverValue?.lowercased() ?? "") ?? .cacheOnFirstLaunch
+    }
+}
+
+/// One distribution channel's settings on a gate: whether the gate shows there,
+/// and how it caches there.
+///
+/// Caching is per channel because that is where it varies. A debug build wants
+/// ``PaygateLaunchCache/refreshOnLaunch`` so flow edits appear immediately;
+/// production wants ``PaygateLaunchCache/cacheOnFirstLaunch`` so the paywall
+/// does not wait on the network.
+public struct GateChannel: Decodable {
+    public let channel: String
+    public let enabled: Bool
+    public let launchCache: PaygateLaunchCache
+
+    private enum CodingKeys: String, CodingKey {
+        case channel, enabled, launchCache
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        channel = try c.decode(String.self, forKey: .channel)
+        // Absent means enabled. A gate that hides itself is the costlier
+        // reading of a field an older or newer server did not send.
+        enabled = try c.decodeIfPresent(Bool.self, forKey: .enabled) ?? true
+        launchCache = PaygateLaunchCache(serverValue: try? c.decodeIfPresent(String.self, forKey: .launchCache))
+    }
+
+    public init(channel: String, enabled: Bool, launchCache: PaygateLaunchCache) {
+        self.channel = channel
+        self.enabled = enabled
+        self.launchCache = launchCache
+    }
+}
+
+/// Gate-level metadata (channels, requirePurchase and appearance live on gates,
+/// not flows).
 public struct GateData {
-    public let enabledChannels: [String]
+    /// One entry per channel the server knows about.
+    public let channels: [GateChannel]
     public let requirePurchase: Bool
-    public let launchCache: String
     public let appearance: PaygateAppearance
+
+    /// This build's channel entry, or `nil` if the gate says nothing about it.
+    public func channel(for channel: DistributionChannel) -> GateChannel? {
+        channels.first { $0.channel == channel.rawValue }
+    }
+
+    /// Whether the gate shows on `channel`.
+    ///
+    /// A gate that lists no channels at all shows everywhere. That is what an
+    /// empty `enabledChannels` meant before per-channel config, and it is the
+    /// only safe reading of a response this build does not understand: the
+    /// alternative is a paywall that silently never appears.
+    public func isEnabled(on channel: DistributionChannel) -> Bool {
+        if channels.isEmpty { return true }
+        guard let entry = self.channel(for: channel) else { return true }
+        return entry.enabled
+    }
+
+    /// How to cache on `channel`.
+    public func launchCache(on channel: DistributionChannel) -> PaygateLaunchCache {
+        self.channel(for: channel)?.launchCache ?? .cacheOnFirstLaunch
+    }
 }
 
 /// Response from the gate SDK endpoint: selected flow content plus gate metadata.
 public struct GateFlowResponse: Decodable {
     public let gateId: String
     public let selectedFlowId: String
-    public let enabledChannels: [String]
+    public let channels: [GateChannel]
     public let requirePurchase: Bool
-    public let launchCache: String
     public let appearance: PaygateAppearance
 
     public let id: String
@@ -63,7 +131,7 @@ public struct GateFlowResponse: Decodable {
     public let products: [ProductData]?
 
     private enum CodingKeys: String, CodingKey {
-        case gateId, selectedFlowId, enabledChannels, requirePurchase, launchCache, appearance
+        case gateId, selectedFlowId, channels, requirePurchase, appearance
         case id, name, pages, bridgeScript, productIds, products
     }
 
@@ -71,7 +139,7 @@ public struct GateFlowResponse: Decodable {
         let c = try decoder.container(keyedBy: CodingKeys.self)
         gateId = try c.decode(String.self, forKey: .gateId)
         selectedFlowId = try c.decode(String.self, forKey: .selectedFlowId)
-        enabledChannels = try c.decodeIfPresent([String].self, forKey: .enabledChannels) ?? []
+        channels = try c.decodeIfPresent([GateChannel].self, forKey: .channels) ?? []
         if let rawBool = try? c.decodeIfPresent(Bool.self, forKey: .requirePurchase) {
             requirePurchase = rawBool
         } else if let rawStr = try? c.decodeIfPresent(String.self, forKey: .requirePurchase) {
@@ -79,7 +147,6 @@ public struct GateFlowResponse: Decodable {
         } else {
             requirePurchase = false
         }
-        launchCache = try c.decodeIfPresent(String.self, forKey: .launchCache) ?? "cache_on_first_launch"
         appearance = PaygateAppearance(serverValue: try? c.decodeIfPresent(String.self, forKey: .appearance))
         id = try c.decode(String.self, forKey: .id)
         name = try c.decode(String.self, forKey: .name)
@@ -91,7 +158,7 @@ public struct GateFlowResponse: Decodable {
 
     /// Gate metadata.
     public var gate: GateData {
-        GateData(enabledChannels: enabledChannels, requirePurchase: requirePurchase, launchCache: launchCache, appearance: appearance)
+        GateData(channels: channels, requirePurchase: requirePurchase, appearance: appearance)
     }
 
     /// Flow content for presentation.

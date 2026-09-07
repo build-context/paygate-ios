@@ -1,12 +1,24 @@
 import Foundation
+import StoreKit
 import UIKit
 
 public final class Paygate {
 
     /// Date-based API version (Stripe-style). Must match a version supported by the backend.
-    public static let apiVersion = "2025-03-16"
+    public static let apiVersion = "2026-09-07"
 
     private static var apiKey: String?
+    /// The Cloud Run hostname, not `api.usepaygate.com`.
+    ///
+    /// The custom domain's DNS is in place (it CNAMEs to `ghs.googlehosted.com`)
+    /// but the mapping is not serving yet — TLS does not complete, so every
+    /// request fails before it reaches the API. This is compiled into shipped
+    /// apps and cannot be fixed remotely, so it stays on the hostname that
+    /// actually answers until the mapping is live.
+    ///
+    /// Switch back once `curl https://api.usepaygate.com/health` returns 200.
+    /// Cloud Run keeps serving this hostname indefinitely, so already-shipped
+    /// builds continue to work either way.
     private static var baseURL: String = "https://api-crtw3ydz4q-uc.a.run.app"
     private static var flowCache: [String: FlowData] = [:]
     private static var gateCache: [String: GateFlowResponse] = [:]
@@ -45,6 +57,42 @@ public final class Paygate {
         }
     }
 
+    /// Force a store country for previewing prices, e.g. `"CA"`.
+    ///
+    /// **Testing only, and it stops working on the `production` channel.** The
+    /// server refuses an override on production and logs that it did — a
+    /// preview switch left on in a shipped build would show every reader a
+    /// price nobody is charged, which is the rejection storefront pricing
+    /// exists to prevent rather than cause.
+    ///
+    /// Set it before launching a gate; leave it `nil` to use the real store
+    /// country.
+    public static var storefrontOverride: String?
+
+    /// The reader's App Store country, e.g. `"CA"` — `nil` until StoreKit
+    /// answers.
+    ///
+    /// Read fresh on every launch rather than cached once per process: a user
+    /// can change their App Store country mid-session, and a stale value here
+    /// prices the paywall for a country they have left.
+    public static var currentStorefront: String? {
+        get async {
+            await Storefront.current?.countryCode
+        }
+    }
+
+    /// Cache key for a fetched flow or gate.
+    ///
+    /// The storefront is part of the key because the server bakes resolved
+    /// prices into the HTML. Keyed by id alone, a gate set to
+    /// `cache_on_first_launch` would serve whatever country happened to open it
+    /// first to everyone afterwards — the same wrong-price bug, with a harder
+    /// repro.
+    static func cacheKey(_ id: String, storefront: String?) -> String {
+        // The platform is constant within a build, so it adds nothing here.
+        "\(id)|\(storefront ?? "-")"
+    }
+
     /// Current distribution channel (iOS).
     public static var currentChannel: DistributionChannel {
         #if DEBUG
@@ -81,12 +129,18 @@ public final class Paygate {
             throw PaygateError.notInitialized
         }
 
+        // Never block the launch on StoreKit. If the storefront is not known
+        // yet the server falls back to the template's key — a paywall that
+        // renders late is worse than one showing the fallback price.
+        let storefront = await Paygate.currentStorefront
+        let flowKey = Paygate.cacheKey(flowId, storefront: storefront)
+
         let flowData: FlowData
-        if let cached = flowCache[flowId] {
+        if let cached = flowCache[flowKey] {
             flowData = cached
         } else {
-            let fetched = try await flows.getFlow(flowId)
-            flowCache[flowId] = fetched
+            let fetched = try await flows.getFlow(flowId, storefront: storefront)
+            flowCache[flowKey] = fetched
             flowData = fetched
         }
 
@@ -159,14 +213,21 @@ public final class Paygate {
             throw PaygateError.notInitialized
         }
 
+        let channel = Paygate.currentChannel
+        // Never block the launch on StoreKit — see launchFlow.
+        let storefront = await Paygate.currentStorefront
+        let gateKey = Paygate.cacheKey(gateId, storefront: storefront)
+
         let response: GateFlowResponse
-        if let cached = gateCache[gateId] {
+        if let cached = gateCache[gateKey] {
             response = cached
         } else {
             do {
-                let fetched = try await gates.getGate(gateId)
-                if fetched.gate.launchCache == "cache_on_first_launch" {
-                    gateCache[gateId] = fetched
+                let fetched = try await gates.getGate(gateId, storefront: storefront)
+                // Caching is decided by this build's channel, so a debug build
+                // set to refresh re-fetches while the shipped app still caches.
+                if fetched.gate.launchCache(on: channel) == .cacheOnFirstLaunch {
+                    gateCache[gateKey] = fetched
                 }
                 response = fetched
             } catch let error as PaygateError {
@@ -180,11 +241,8 @@ public final class Paygate {
             }
         }
 
-        if !response.gate.enabledChannels.isEmpty {
-            let current = Paygate.currentChannel.rawValue
-            if !response.gate.enabledChannels.contains(current) {
-                return PaygateLaunchResult(status: .channelNotEnabled)
-            }
+        if !response.gate.isEnabled(on: channel) {
+            return PaygateLaunchResult(status: .channelNotEnabled)
         }
 
         let flowData = response.flowData
@@ -201,7 +259,7 @@ public final class Paygate {
         }
 
         let purchaseRequired = response.gate.requirePurchase
-        let disableWebViewCache = response.gate.launchCache == "refresh_on_launch"
+        let disableWebViewCache = response.gate.launchCache(on: channel) == .refreshOnLaunch
         // The caller wins. Only the app knows whether it has a theme setting of
         // its own, and the gate's value is a default for the apps that do not.
         let resolvedAppearance = appearance ?? response.gate.appearance
@@ -214,7 +272,8 @@ public final class Paygate {
                 gateId: gateId,
                 purchaseRequired: purchaseRequired,
                 disableWebViewCache: disableWebViewCache,
-                appearance: resolvedAppearance
+                appearance: resolvedAppearance,
+                storefront: storefront
             ) { result in
                 switch result {
                 case .dismissed(let data):
