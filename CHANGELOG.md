@@ -1,3 +1,27 @@
+## 0.4.0
+
+- **Breaking.** `DistributionChannel.testflight` is now
+  `DistributionChannel.testing`, and the wire value is `testing`. TestFlight
+  detection is unchanged — a `sandboxReceipt` in the bundle still identifies a
+  build under test — only the name it resolves to has changed, so that iOS and
+  Android can finally mean the same thing by it.
+- **`Paygate.channelOverride` sets the channel explicitly, and wins over
+  detection.** Rarely needed here, since this SDK can tell TestFlight from the
+  App Store on its own. It exists for parity with Android, where the equivalent
+  is undetectable: Play reports the same installer for every testing track as
+  for production.
+- Unlike `storefrontOverride`, `channelOverride` is **not** refused in
+  production. It selects among your own gate settings; it cannot reprice
+  anything, and it cannot reveal a paywall a gate has switched off.
+- **Already-shipped builds are safe, and this was checked rather than assumed.**
+  A build on 2026-09-07 looks for a `testflight` entry, does not find one, and
+  falls back to `enabled ?? true` / `launchCache ?? cacheOnFirstLaunch` — it
+  keeps selling and merely stops re-fetching per launch. A build pinned to
+  2025-03-16 gates itself by string-matching `enabledChannels`, where a miss
+  means `channelNotEnabled` and **no paywall at all**; the API therefore keeps
+  serving `testflight` in that legacy field specifically. Upgrading the API
+  without upgrading this SDK is safe in both directions.
+
 ## 0.3.0
 
 - **Breaking.** `GateData.enabledChannels` and `GateData.launchCache` are gone,

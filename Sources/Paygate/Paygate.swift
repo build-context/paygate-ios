@@ -93,13 +93,31 @@ public final class Paygate {
         "\(id)|\(storefront ?? "-")"
     }
 
+    /// Force the distribution channel, whatever this build actually is.
+    ///
+    /// **Rarely needed on iOS**, because ``currentChannel`` can tell a
+    /// TestFlight build from a shipped one on its own — a TestFlight install
+    /// carries a `sandboxReceipt`. It exists for parity with Android, where the
+    /// equivalent is not detectable at all: Play tells an installed app nothing
+    /// about which track served it, so an app there has to say so itself.
+    ///
+    /// Set it before ``launchGate(_:bounces:presentationStyle:appearance:)``.
+    /// Unlike `storefrontOverride` this is **not** refused in production — it
+    /// selects which of your own gate settings apply, and cannot reprice
+    /// anything or reveal a paywall a gate has switched off.
+    public static var channelOverride: DistributionChannel?
+
     /// Current distribution channel (iOS).
+    ///
+    /// An explicit ``channelOverride`` wins over everything: an app that knows
+    /// what it shipped is a better authority than any inference here.
     public static var currentChannel: DistributionChannel {
+        if let channelOverride { return channelOverride }
         #if DEBUG
         return .debug
         #else
         return Bundle.main.appStoreReceiptURL?.lastPathComponent == "sandboxReceipt"
-            ? .testflight
+            ? .testing
             : .production
         #endif
     }

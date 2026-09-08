@@ -2,9 +2,22 @@ import Foundation
 
 // MARK: - Distribution
 
+/// Which kind of build this is, as far as a gate's per-channel settings care.
+///
+/// Three, and deliberately not one per store. `testing` was called `testflight`
+/// until the Android SDK could take money and the name stopped being true: Play
+/// has no TestFlight, so half the clients could never match that entry. The
+/// server no longer sends or accepts the old name — see `gateChannels.ts`.
 public enum DistributionChannel: String {
+    /// A shipped build, installed from the App Store or Play.
     case production
-    case testflight
+
+    /// A build under test: TestFlight on iOS, and on Android an install that
+    /// did not come from Play, or whatever ``Paygate/channelOverride`` says.
+    case testing
+
+    /// A build compiled for debugging — `#if DEBUG` here, `FLAG_DEBUGGABLE`
+    /// on Android.
     case debug
 }
 
