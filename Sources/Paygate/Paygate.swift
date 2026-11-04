@@ -81,6 +81,48 @@ public final class Paygate {
         }
     }
 
+    /// A random id for this install, created on first use and persisted.
+    ///
+    /// Sent with every request so a gate gives this reader the same flow —
+    /// and so the same price — on every launch, rather than re-rolling its
+    /// weights each time. Deleting the app discards it.
+    ///
+    /// Not an advertising identifier and not shared with anything else; it is
+    /// exposed only so you can log it alongside your own analytics or quote it
+    /// in a support conversation.
+    public static var installId: String {
+        InstallId.current
+    }
+
+    /// Your own id for the signed-in user, if you have one.
+    ///
+    /// When set, a gate assigns its flow by this instead of by ``installId``,
+    /// so one person sees the same flow on their phone and their iPad, and
+    /// after a reinstall. Optional: without it, assignment is per install.
+    ///
+    /// Setting it moves a reader **once**, from their install's flow to their
+    /// user's, so set it as early as you know who they are — ideally before
+    /// the first gate launch. Clearing it (sign-out) moves them back to the
+    /// install's flow.
+    ///
+    /// Sent as a request header. Use an opaque id (a database key, a UUID),
+    /// not an email address.
+    public static var appUserId: String? {
+        didSet {
+            // A gate cached for this process was assigned to the old id.
+            if appUserId != oldValue { gateCache.removeAll() }
+        }
+    }
+
+    /// ``appUserId`` as sent: trimmed, and `nil` when empty or too long for
+    /// the server to accept.
+    static var normalizedAppUserId: String? {
+        guard let trimmed = appUserId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty, trimmed.count <= 256,
+              !trimmed.contains(where: \.isNewline) else { return nil }
+        return trimmed
+    }
+
     /// Cache key for a fetched flow or gate.
     ///
     /// The storefront is part of the key because the server bakes resolved
@@ -211,7 +253,10 @@ public final class Paygate {
         }
     }
 
-    /// Launch a gate, which randomly selects a flow based on configured weights.
+    /// Launch a gate, which shows one of its flows chosen by the configured
+    /// weights. The choice is sticky: the same reader (``appUserId`` if set,
+    /// otherwise ``installId``) gets the same flow every time, until the
+    /// gate's weights change.
     /// - Parameters:
     ///   - gateId: The ID of the gate to present.
     ///   - appearance: Overrides the appearance configured on the gate. Pass

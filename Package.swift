@@ -17,5 +17,10 @@ let package = Package(
             name: "Paygate",
             path: "Sources/Paygate"
         ),
+        .testTarget(
+            name: "PaygateTests",
+            dependencies: ["Paygate"],
+            path: "Tests/PaygateTests"
+        ),
     ]
 )

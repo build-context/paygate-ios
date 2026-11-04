@@ -18,6 +18,12 @@ enum PaygateHTTP {
         }
         request.setValue("apple", forHTTPHeaderField: "Paygate-Platform")
         request.setValue(Paygate.currentChannel.rawValue, forHTTPHeaderField: "Paygate-Channel")
+        // Who the reader is, so a gate shows them the same flow every time.
+        // The app user id, when the app set one, wins on the server.
+        request.setValue(Paygate.installId, forHTTPHeaderField: "Paygate-Install-Id")
+        if let appUserId = Paygate.normalizedAppUserId {
+            request.setValue(appUserId, forHTTPHeaderField: "Paygate-App-User-Id")
+        }
         // The override is sent, not applied locally, so the server can refuse it
         // on production and say so in its logs. A client that silently dropped
         // it would leave a developer staring at the wrong price with nothing to
