@@ -1,3 +1,10 @@
+## Unreleased
+
+- **Swift Package Manager is the recommended install.** A README with SPM first
+  and CocoaPods second. No code changes.
+- **A LICENSE file (MIT).** The podspec has always declared MIT, but
+  `pod spec lint` warned that the repo had no license file.
+
 ## 0.5.0
 
 - **A gate now shows each reader the same flow every time.** The SDK creates a
