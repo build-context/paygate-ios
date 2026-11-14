@@ -1,5 +1,30 @@
-## Unreleased
+## 0.6.0
 
+- **Lifetime (non-consumable) purchases now count.** The SDK kept only
+  subscriptions, so someone who bought a lifetime unlock was never entitled:
+  the gate kept showing, and Restore found nothing. What the user owns now
+  covers auto-renewable and non-renewing subscriptions **and** non-consumables.
+  Consumables are left out, and so are refunded purchases and expired
+  subscriptions. Gate suppression, Restore and the public getter all read the
+  same set.
+- **`Paygate.activeEntitlementProductIDs`** is that set. The old
+  `activeSubscriptionProductIDs` is deprecated but still works, and **now
+  includes lifetime purchases**. If your app reads it to decide who has paid,
+  lifetime buyers start counting with no change on your side.
+- **Restore is never silent.** When a paywall's Restore button finds nothing,
+  or the App Store cannot be reached, the SDK tells the page: `paygate.restore()`
+  now returns a Promise, and a flow can set `paygate.onRestore = fn` to receive
+  `{ status: "restored" | "nothing_found" | "cancelled" | "error" }`. A flow
+  with no handler gets a native alert for `nothing_found` and `error`, so
+  existing flows don't need editing. Cancelling the Apple Account prompt shows
+  nothing, because cancelling was the reader's choice.
+- A failed `AppStore.sync()` (offline, say) still finds purchases the device
+  already knows about, so a lifetime unlock restores without a connection.
+- **`Paygate.restorePurchases()`** for a "Restore purchases" row in your own
+  settings. It returns what the user owns afterwards, and throws
+  `StoreKitError.userCancelled` if they cancel the password prompt.
+- A second tap on Restore while one is running is ignored, instead of starting
+  a second sync and a second password prompt.
 - **Swift Package Manager is the recommended install.** A README with SPM first
   and CocoaPods second. No code changes.
 - **A LICENSE file (MIT).** The podspec has always declared MIT, but

@@ -15,7 +15,7 @@ Or in `Package.swift`:
 
 ```swift
 dependencies: [
-    .package(url: "https://github.com/build-context/paygate-ios.git", from: "0.5.0")
+    .package(url: "https://github.com/build-context/paygate-ios.git", from: "0.6.0")
 ],
 targets: [
     .target(name: "YourApp", dependencies: [
@@ -32,7 +32,7 @@ the moment its tag exists.
 CocoaPods still works. In your `Podfile`:
 
 ```ruby
-pod 'Paygate', '~> 0.5.0'
+pod 'Paygate', '~> 0.6.0'
 ```
 
 then `pod install`. CocoaPods is fed by a separate `pod trunk push`, so it can

@@ -27,8 +27,8 @@ public final class Paygate {
     static var gates: GateRepository!
     static var products: ProductRepository!
 
-    /// Initialize the SDK, load the user's active subscriptions, and begin
-    /// listening for transaction updates.
+    /// Initialize the SDK, load what the user owns (subscriptions and
+    /// lifetime unlocks), and begin listening for transaction updates.
     ///
     /// - Parameters:
     ///   - apiKey: Your Paygate API key.
@@ -49,8 +49,8 @@ public final class Paygate {
 
         await StoreKitManager.shared.start()
         await StoreKitManager.shared.loadPurchasedProducts()
-        let ids = await StoreKitManager.shared.activeSubscriptionProductIDs
-        print("[Paygate] Active subscription product IDs:", ids.sorted().joined(separator: ", "))
+        let ids = await StoreKitManager.shared.activeEntitlementProductIDs
+        print("[Paygate] Entitled product IDs:", ids.sorted().joined(separator: ", "))
 
         Task {
             await PresentationAnalytics.flushPendingOutbox(apiKey: apiKey, baseURL: self.baseURL)
@@ -164,11 +164,51 @@ public final class Paygate {
         #endif
     }
 
-    /// The set of App Store product IDs for which the user has an active subscription.
+    /// App Store product IDs the user owns right now: active subscriptions
+    /// and non-consumables (lifetime unlocks). Consumables are not included.
+    ///
+    /// Read from StoreKit's on-device record, so it answers offline.
+    public static var activeEntitlementProductIDs: Set<String> {
+        get async {
+            await StoreKitManager.shared.activeEntitlementProductIDs
+        }
+    }
+
+    /// The old name for ``activeEntitlementProductIDs``. It now includes
+    /// lifetime unlocks as well as subscriptions: before 0.6.0 a non-consumable
+    /// never appeared here, so an app checking it locked out lifetime buyers.
+    @available(*, deprecated, renamed: "activeEntitlementProductIDs")
     public static var activeSubscriptionProductIDs: Set<String> {
         get async {
-            await StoreKitManager.shared.activeSubscriptionProductIDs
+            await StoreKitManager.shared.activeEntitlementProductIDs
         }
+    }
+
+    /// Restore purchases, for a "Restore purchases" row in your own settings.
+    ///
+    /// Syncs with the App Store (which may ask for the Apple Account
+    /// password) and returns what the user owns afterwards — empty when there
+    /// is nothing to restore. Throws `StoreKitError.userCancelled` if they
+    /// cancel that prompt. If the sync fails for another reason but the device
+    /// already knows of a purchase, that purchase is returned rather than the
+    /// error; only "failed, and nothing known" throws.
+    ///
+    /// A paywall's own Restore button (`paygate.restore()` in the flow) does
+    /// not need this; the SDK handles it.
+    @discardableResult
+    public static func restorePurchases() async throws -> Set<String> {
+        do {
+            try await StoreKitManager.shared.syncPurchases()
+        } catch StoreKitError.userCancelled {
+            throw StoreKitError.userCancelled
+        } catch {
+            let known = await StoreKitManager.shared.activeEntitlementProductIDs
+            if known.isEmpty { throw error }
+            print("[Paygate] restorePurchases: sync failed (\(error.localizedDescription)); " +
+                  "returning the purchases already on this device")
+            return known
+        }
+        return await StoreKitManager.shared.activeEntitlementProductIDs
     }
 
     /// Launch a paywall flow.
@@ -205,7 +245,7 @@ public final class Paygate {
         }
 
         let idMap = flowData.productIdMap
-        let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
+        let activeIds = await StoreKitManager.shared.activeEntitlementProductIDs
         for storeId in idMap.values {
             if activeIds.contains(storeId) {
                 return PaygateLaunchResult(status: .alreadySubscribed, productId: storeId)
@@ -310,7 +350,7 @@ public final class Paygate {
 
         let flowData = response.flowData
         let gateIdMap = flowData.productIdMap
-        let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
+        let activeIds = await StoreKitManager.shared.activeEntitlementProductIDs
         for storeId in gateIdMap.values {
             if activeIds.contains(storeId) {
                 return PaygateLaunchResult(status: .alreadySubscribed, productId: storeId)

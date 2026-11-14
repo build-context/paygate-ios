@@ -1,3 +1,4 @@
+import StoreKit
 import UIKit
 import WebKit
 
@@ -18,6 +19,9 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private let productIdMap: [String: String]
     private let completion: (PaygateResult) -> Void
     private var didInvokeCompletion = false
+    /// True while a Restore is running, so a second tap does not start a
+    /// second App Store sync (and a second Apple Account prompt).
+    private var isRestoring = false
     /// Gate sessions only: local buffer + single flush to `POST /sdk/presentations`.
     private var eventBuffer: PresentationEventBuffer?
     private var webView: WKWebView!
@@ -206,6 +210,7 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         <body>
         \(pageDivs)
         \(flowData.bridgeScript)
+        \(RestoreBridge.script)
         </body>
         </html>
         """
@@ -280,39 +285,85 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         dismiss(animated: true)
     }
 
+    /// Restore: sync with the App Store, unlock if this flow's products are
+    /// owned, and otherwise tell the reader so — never silence.
+    ///
+    /// Owned means any entitlement, lifetime included (see
+    /// `StoreKitManager.activeEntitlementProductIDs`). The outcome goes back
+    /// to the page through `RestoreBridge`; when the page shows no message of
+    /// its own, the SDK shows an alert.
     private func handleRestore(data: [String: Any]? = nil) {
+        guard !isRestoring else {
+            print("[Paygate] Restore already in progress; ignoring the extra tap")
+            return
+        }
+        isRestoring = true
         Task {
+            defer { isRestoring = false }
+            var syncError: Error?
             do {
                 try await StoreKitManager.shared.syncPurchases()
-                let activeIds = await StoreKitManager.shared.activeSubscriptionProductIDs
-                for paygateProductId in flowData.productIds {
-                    let storeId = productIdMap[paygateProductId] ?? paygateProductId
-                    if activeIds.contains(storeId) {
-                        if eventBuffer != nil {
-                            eventBuffer?.append(
-                                eventType: "restore_completed",
-                                metadata: ["productId": paygateProductId, "appStoreProductId": storeId]
-                            )
-                        } else {
-                            trackEventHTTP(
-                                eventType: "restore_completed",
-                                metadata: ["productId": paygateProductId, "appStoreProductId": storeId]
-                            )
-                        }
-                        dismissFlow(result: .purchased(productId: storeId, data: data))
-                        return
-                    }
-                }
-                print("[Paygate] Restore: no active subscription for this flow's products")
-                eventBuffer?.append(eventType: "restore_no_entitlement", metadata: [:])
+            } catch StoreKitError.userCancelled {
+                print("[Paygate] Restore cancelled at the Apple Account prompt")
+                eventBuffer?.append(eventType: "restore_cancelled", metadata: [:])
+                reportRestore(.cancelled)
+                return
             } catch {
-                print("[Paygate] Restore error: \(error.localizedDescription)")
+                // Entitlements were still re-read from the device, so a
+                // purchase may be found even though the sync failed.
+                syncError = error
+            }
+
+            let activeIds = await StoreKitManager.shared.activeEntitlementProductIDs
+            for paygateProductId in flowData.productIds {
+                let storeId = productIdMap[paygateProductId] ?? paygateProductId
+                if activeIds.contains(storeId) {
+                    let metadata = ["productId": paygateProductId, "appStoreProductId": storeId]
+                    if eventBuffer != nil {
+                        eventBuffer?.append(eventType: "restore_completed", metadata: metadata)
+                    } else {
+                        trackEventHTTP(eventType: "restore_completed", metadata: metadata)
+                    }
+                    reportRestore(.restored, productId: storeId)
+                    dismissFlow(result: .purchased(productId: storeId, data: data))
+                    return
+                }
+            }
+
+            if let syncError {
+                print("[Paygate] Restore error: \(syncError.localizedDescription)")
                 eventBuffer?.append(
                     eventType: "restore_error",
-                    metadata: ["message": error.localizedDescription]
+                    metadata: ["message": syncError.localizedDescription]
                 )
+                reportRestore(.error, message: syncError.localizedDescription)
+            } else {
+                print("[Paygate] Restore: nothing owned among this flow's products " +
+                      "(entitled to: \(activeIds.sorted().joined(separator: ", ")))")
+                eventBuffer?.append(eventType: "restore_no_entitlement", metadata: [:])
+                reportRestore(.nothingFound)
             }
         }
+    }
+
+    /// Hands a restore outcome to the page, and shows the SDK's own alert
+    /// when the page does not handle it.
+    private func reportRestore(_ status: RestoreBridge.Status, productId: String? = nil, message: String? = nil) {
+        let script = RestoreBridge.deliverScript(status: status, productId: productId, message: message)
+        webView.evaluateJavaScript(script) { [weak self] value, _ in
+            guard let self else { return }
+            let handled = (value as? Bool) == true
+            guard !handled, let alert = RestoreBridge.fallbackAlert(for: status) else { return }
+            self.presentRestoreAlert(title: alert.title, message: alert.message)
+        }
+    }
+
+    private func presentRestoreAlert(title: String, message: String) {
+        // Only while the flow is on screen: the alert is about this paywall.
+        guard viewIfLoaded?.window != nil, presentedViewController == nil else { return }
+        let alert = UIAlertController(title: title, message: message, preferredStyle: .alert)
+        alert.addAction(UIAlertAction(title: "OK", style: .default))
+        present(alert, animated: true)
     }
 
     private func handlePurchase(productId: String, data: [String: Any]? = nil) {

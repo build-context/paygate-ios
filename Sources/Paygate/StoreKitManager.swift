@@ -3,7 +3,19 @@ import StoreKit
 public actor StoreKitManager {
     public static let shared = StoreKitManager()
 
-    public private(set) var activeSubscriptionProductIDs: Set<String> = []
+    /// App Store product IDs the user is entitled to right now: active
+    /// subscriptions **and** non-consumables (lifetime unlocks).
+    ///
+    /// This used to hold subscriptions only, so someone who bought a lifetime
+    /// unlock was never entitled — the gate kept showing and Restore found
+    /// nothing. Consumables are left out: they are used up, not owned.
+    public private(set) var activeEntitlementProductIDs: Set<String> = []
+
+    /// The old name, kept so existing callers compile. It now includes
+    /// non-consumables too — a caller asking "is this user paying?" wants them.
+    @available(*, deprecated, renamed: "activeEntitlementProductIDs")
+    public var activeSubscriptionProductIDs: Set<String> { activeEntitlementProductIDs }
+
     private var updateListenerTask: Task<Void, Never>?
 
     public func start() {
@@ -17,9 +29,21 @@ public actor StoreKitManager {
         }
     }
 
-    /// Refreshes transactions from the App Store and updates `activeSubscriptionProductIDs`.
+    /// Asks the App Store for this account's purchases (Restore), then
+    /// re-reads entitlements.
+    ///
+    /// `AppStore.sync()` can prompt for the Apple Account password. If the user
+    /// cancels that prompt this throws `StoreKitError.userCancelled`. Any other
+    /// failure (offline, say) still re-reads entitlements before rethrowing:
+    /// StoreKit keeps them on the device, so a lifetime unlock can be restored
+    /// even when the sync itself fails.
     public func syncPurchases() async throws {
-        try await AppStore.sync()
+        do {
+            try await AppStore.sync()
+        } catch {
+            await loadPurchasedProducts()
+            throw error
+        }
         await loadPurchasedProducts()
     }
 
@@ -27,12 +51,35 @@ public actor StoreKitManager {
         var active: Set<String> = []
         for await result in Transaction.currentEntitlements {
             if let transaction = try? result.payloadValue,
-               transaction.revocationDate == nil,
-               isSubscription(transaction.productType) {
+               Self.grantsEntitlement(
+                   type: transaction.productType,
+                   revocationDate: transaction.revocationDate,
+                   expirationDate: transaction.expirationDate
+               ) {
                 active.insert(transaction.productID)
             }
         }
-        activeSubscriptionProductIDs = active
+        activeEntitlementProductIDs = active
+    }
+
+    /// Whether a transaction entitles the user to its product.
+    ///
+    /// Subscriptions (auto-renewable and non-renewing) and non-consumables
+    /// do; consumables never do. A refund or revocation ends it, and so does a
+    /// passed expiration date — `Transaction.updates` can deliver an expired
+    /// renewal, which used to be added as active.
+    static func grantsEntitlement(
+        type: Product.ProductType,
+        revocationDate: Date?,
+        expirationDate: Date?,
+        now: Date = Date()
+    ) -> Bool {
+        guard type == .autoRenewable || type == .nonRenewable || type == .nonConsumable else {
+            return false
+        }
+        if revocationDate != nil { return false }
+        if let expirationDate, expirationDate <= now { return false }
+        return true
     }
 
     /// Fetches products from the App Store and prints a console summary (ids, names, prices, missing ids).
@@ -77,8 +124,12 @@ public actor StoreKitManager {
                 transaction = t
             }
             await transaction.finish()
-            if isSubscription(product.type) {
-                activeSubscriptionProductIDs.insert(transaction.productID)
+            if Self.grantsEntitlement(
+                type: product.type,
+                revocationDate: transaction.revocationDate,
+                expirationDate: transaction.expirationDate
+            ) {
+                activeEntitlementProductIDs.insert(transaction.productID)
             }
             return transaction.productID
         case .userCancelled:
@@ -91,20 +142,23 @@ public actor StoreKitManager {
     }
 
     public func isPurchased(_ productID: String) -> Bool {
-        activeSubscriptionProductIDs.contains(productID)
+        activeEntitlementProductIDs.contains(productID)
     }
 
-    private func handle(_ transaction: Transaction) {
-        if transaction.revocationDate == nil, isSubscription(transaction.productType) {
-            activeSubscriptionProductIDs.insert(transaction.productID)
+    private func handle(_ transaction: Transaction) async {
+        if Self.grantsEntitlement(
+            type: transaction.productType,
+            revocationDate: transaction.revocationDate,
+            expirationDate: transaction.expirationDate
+        ) {
+            activeEntitlementProductIDs.insert(transaction.productID)
         } else {
-            activeSubscriptionProductIDs.remove(transaction.productID)
+            // Re-read rather than remove: an update for one transaction
+            // (a refunded or expired period) does not mean the product is no
+            // longer owned — a later renewal of it may still be active.
+            await loadPurchasedProducts()
         }
-        Task { await transaction.finish() }
-    }
-
-    private func isSubscription(_ type: Product.ProductType) -> Bool {
-        type == .autoRenewable || type == .nonRenewable
+        await transaction.finish()
     }
 
     private func logFetchedProducts(_ products: [Product], requested: [String]) {
