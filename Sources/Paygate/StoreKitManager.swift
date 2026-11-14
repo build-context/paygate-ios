@@ -100,7 +100,19 @@ public actor StoreKitManager {
         }
     }
 
+    /// What a completed purchase was, for reporting it to Paygate.
+    struct CompletedPurchase {
+        let productID: String
+        let transactionID: String
+        let originalTransactionID: String
+    }
+
     public func purchase(_ productID: String) async throws -> String? {
+        try await purchaseTransaction(productID)?.productID
+    }
+
+    /// Buys `productID`. Nil when the user cancelled or the purchase is pending.
+    func purchaseTransaction(_ productID: String) async throws -> CompletedPurchase? {
         let products = try await Product.products(for: [productID])
         logFetchedProducts(products, requested: [productID])
         guard let product = products.first else {
@@ -131,7 +143,13 @@ public actor StoreKitManager {
             ) {
                 activeEntitlementProductIDs.insert(transaction.productID)
             }
-            return transaction.productID
+            // Strings, never numbers: Apple's ids exceed 2^53, and the server
+            // refuses a JSON number for exactly that reason.
+            return CompletedPurchase(
+                productID: transaction.productID,
+                transactionID: String(transaction.id),
+                originalTransactionID: String(transaction.originalID)
+            )
         case .userCancelled:
             return nil
         case .pending:

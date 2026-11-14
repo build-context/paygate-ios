@@ -1,3 +1,17 @@
+## 0.6.1
+
+- **A purchase made in a gate is credited to that gate.** After a purchase
+  completes inside `launchGate`, the SDK reports which gate and paywall sold
+  it (`POST /sdk/purchases`, with the transaction's original id). Paygate
+  pairs that with the App Store's server notification, which carries the
+  price, so revenue shows under the gate and its price-test arm instead of as
+  unattributed. Before this nothing reported it, so every purchase was
+  unattributed.
+- The report carries no price, and it is saved to disk before it is sent, so
+  an app that is killed or offline straight after a purchase still sends it
+  on its next launch. Restores are not reported: a restore is not a sale.
+- No API changes.
+
 ## 0.6.0
 
 - **Lifetime (non-consumable) purchases now count.** The SDK kept only

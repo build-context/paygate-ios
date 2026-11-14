@@ -10,6 +10,7 @@ final class PresentationEventBuffer {
     init(gateId: String, flowId: String, apiKey: String, baseURL: String, storefront: String?) {
         let openedAt = Int64(Date().timeIntervalSince1970 * 1000)
         let batchId = UUID().uuidString
+        self.clientBatchId = batchId
         self.pending = PendingPresentation(
             clientBatchId: batchId,
             gateId: gateId,
@@ -30,6 +31,11 @@ final class PresentationEventBuffer {
         self.baseURL = baseURL
         OutboxStore.save(pending)
     }
+
+    /// This presentation's batch id, so a purchase report can point at it.
+    /// Kept apart from `pending`, which is mutated on `queue`, so reading it
+    /// from the main thread is not a race.
+    let clientBatchId: String
 
     func append(eventType: String, metadata: [String: String] = [:]) {
         queue.async {

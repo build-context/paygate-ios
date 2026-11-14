@@ -54,6 +54,7 @@ public final class Paygate {
 
         Task {
             await PresentationAnalytics.flushPendingOutbox(apiKey: apiKey, baseURL: self.baseURL)
+            await PurchaseReporter.flushPending(apiKey: apiKey, baseURL: self.baseURL)
         }
     }
 

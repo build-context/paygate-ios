@@ -387,9 +387,30 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
         Task {
             do {
-                let purchased = try await StoreKitManager.shared.purchase(storeProductId)
-                if let purchasedId = purchased {
+                let completed = try await StoreKitManager.shared.purchaseTransaction(storeProductId)
+                if let completed {
+                    let purchasedId = completed.productID
                     print("[Paygate] Purchase completed: \(purchasedId)")
+                    // Credit the gate and paywall that sold it. Gate sessions
+                    // only: a flow launched on its own has no gate to credit,
+                    // and its money is correctly reported as unattributed.
+                    if let gateId {
+                        PurchaseReporter.report(
+                            PendingPurchaseReport(
+                                id: UUID().uuidString,
+                                provider: "apple",
+                                originalTransactionId: completed.originalTransactionID,
+                                transactionId: completed.transactionID,
+                                gateId: gateId,
+                                flowId: flowData.id,
+                                storeProductId: purchasedId,
+                                appUserId: Paygate.normalizedAppUserId,
+                                clientBatchId: eventBuffer?.clientBatchId
+                            ),
+                            apiKey: apiKey,
+                            baseURL: baseURL
+                        )
+                    }
                     if eventBuffer != nil {
                         eventBuffer?.append(eventType: "purchase_completed", metadata: ["productId": purchasedId])
                     } else {
