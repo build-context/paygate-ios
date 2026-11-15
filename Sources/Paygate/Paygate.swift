@@ -217,13 +217,18 @@ public final class Paygate {
     ///   - appearance: Color scheme to pin the flow to. Flows carry no
     ///     appearance of their own — that setting lives on the gate — so this
     ///     defaults to `.system`, which follows the device.
+    ///   - sheetCornerRadius: The sheet's corner radius in points, so the
+    ///     paywall's corners match your app's other sheets. Drawn as a
+    ///     continuous corner. Only for `.sheet`, on iOS 16 and later; `nil`
+    ///     (the default) keeps the system's radius.
     /// - Returns: A typed result with status, optional productId, and optional data.
     @MainActor
     public static func launchFlow(
         _ flowId: String,
         bounces: Bool = false,
         presentationStyle: PaygatePresentationStyle = .sheet,
-        appearance: PaygateAppearance = .system
+        appearance: PaygateAppearance = .system,
+        sheetCornerRadius: CGFloat? = nil
     ) async throws -> PaygateLaunchResult {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
@@ -276,19 +281,7 @@ public final class Paygate {
                     continuation.resume(throwing: error)
                 }
             }
-            switch presentationStyle {
-            case .fullScreen:
-                paygateVC.modalPresentationStyle = .fullScreen
-                paygateVC.modalTransitionStyle = .coverVertical
-            case .sheet:
-                paygateVC.modalPresentationStyle = .pageSheet
-                if #available(iOS 15.0, *),
-                   let sheet = paygateVC.sheetPresentationController {
-                    sheet.detents = [.large()]
-                    sheet.prefersGrabberVisible = true
-                    sheet.prefersScrollingExpandsWhenScrolledToEdge = false
-                }
-            }
+            configurePresentation(of: paygateVC, style: presentationStyle, sheetCornerRadius: sheetCornerRadius)
             presenter.present(paygateVC, animated: true)
         }
     }
@@ -304,13 +297,18 @@ public final class Paygate {
     ///     the device, not your app, so leaving it to the gate means the paywall
     ///     can disagree with the screen behind it. `nil` (the default) uses
     ///     whatever the gate is set to.
+    ///   - sheetCornerRadius: The sheet's corner radius in points, so the
+    ///     paywall's corners match your app's other sheets. Drawn as a
+    ///     continuous corner. Only for `.sheet`, on iOS 16 and later; `nil`
+    ///     (the default) keeps the system's radius.
     /// - Returns: A typed result with status, optional productId, and optional data.
     @MainActor
     public static func launchGate(
         _ gateId: String,
         bounces: Bool = false,
         presentationStyle: PaygatePresentationStyle = .sheet,
-        appearance: PaygateAppearance? = nil
+        appearance: PaygateAppearance? = nil,
+        sheetCornerRadius: CGFloat? = nil
     ) async throws -> PaygateLaunchResult {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
@@ -389,21 +387,45 @@ public final class Paygate {
                     continuation.resume(throwing: error)
                 }
             }
-            switch presentationStyle {
-            case .fullScreen:
-                paygateVC.modalPresentationStyle = .fullScreen
-                paygateVC.modalTransitionStyle = .coverVertical
-            case .sheet:
-                paygateVC.modalPresentationStyle = .pageSheet
-                if #available(iOS 15.0, *),
-                   let sheet = paygateVC.sheetPresentationController {
-                    sheet.detents = [.large()]
-                    sheet.prefersGrabberVisible = true
-                    sheet.prefersScrollingExpandsWhenScrolledToEdge = false
-                }
-            }
+            configurePresentation(of: paygateVC, style: presentationStyle, sheetCornerRadius: sheetCornerRadius)
             presenter.present(paygateVC, animated: true)
         }
+    }
+
+    /// One place for how a paywall is presented, so a flow and a gate always
+    /// look the same.
+    @MainActor
+    static func configurePresentation(
+        of viewController: UIViewController,
+        style: PaygatePresentationStyle,
+        sheetCornerRadius: CGFloat?
+    ) {
+        switch style {
+        case .fullScreen:
+            viewController.modalPresentationStyle = .fullScreen
+            viewController.modalTransitionStyle = .coverVertical
+        case .sheet:
+            viewController.modalPresentationStyle = .pageSheet
+            if #available(iOS 15.0, *),
+               let sheet = viewController.sheetPresentationController {
+                sheet.detents = [.large()]
+                sheet.prefersGrabberVisible = true
+                sheet.prefersScrollingExpandsWhenScrolledToEdge = false
+                // iOS draws this as a continuous (squircle) corner, like its
+                // own. Before iOS 16 there is no public way to set it, so the
+                // sheet keeps the system radius there.
+                if #available(iOS 16.0, *), let radius = sanitizedCornerRadius(sheetCornerRadius) {
+                    sheet.preferredCornerRadius = radius
+                }
+            }
+        }
+    }
+
+    /// `nil` for "use the system's radius": no value, a negative one, or
+    /// something that is not a number. Zero is kept; it means square corners.
+    static func sanitizedCornerRadius(_ value: CGFloat?) -> CGFloat? {
+        guard let value, value.isFinite, value >= 0 else { return nil }
+        return value
     }
 
     /// Purchase a product by its Paygate product ID.

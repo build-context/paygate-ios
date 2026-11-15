@@ -1,3 +1,11 @@
+## Unreleased
+
+- **`sheetCornerRadius`** on `launchGate` and `launchFlow`: the paywall sheet's
+  corner radius in points, so its corners match the app's other sheets. iOS
+  draws it as a continuous corner (`UISheetPresentationController.preferredCornerRadius`).
+  It applies to `.sheet` on iOS 16 and later. `nil`, the default, keeps the
+  system's radius, so apps that don't pass it see no change.
+
 ## 0.6.0
 
 - **Lifetime (non-consumable) purchases now count.** The SDK kept only
