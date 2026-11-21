@@ -24,6 +24,9 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
     private var isRestoring = false
     /// Gate sessions only: local buffer + single flush to `POST /sdk/presentations`.
     private var eventBuffer: PresentationEventBuffer?
+    /// The app's language for this paywall, already normalized; `nil` keeps
+    /// the device's. See ``LocaleBridge``.
+    private let locale: String?
     private var webView: WKWebView!
     private var spinner: UIActivityIndicatorView!
 
@@ -37,8 +40,10 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
         disableWebViewCache: Bool = false,
         appearance: PaygateAppearance = .system,
         storefront: String? = nil,
+        locale: String? = nil,
         completion: @escaping (PaygateResult) -> Void
     ) {
+        self.locale = locale
         self.flowData = flowData
         self.apiKey = apiKey
         self.baseURL = baseURL
@@ -201,16 +206,18 @@ public class PaygateViewController: UIViewController, WKScriptMessageHandler, WK
 
         let html = """
         <!DOCTYPE html>
-        <html lang="en">
+        <html lang="\(LocaleBridge.htmlLang(locale: locale))">
         <head>
         <meta charset="UTF-8">
         <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
         <title>Flow</title>
+        \(LocaleBridge.headScript(locale: locale) ?? "")
         </head>
         <body>
         \(pageDivs)
         \(flowData.bridgeScript)
         \(RestoreBridge.script)
+        \(LocaleBridge.tailScript(locale: locale))
         </body>
         </html>
         """

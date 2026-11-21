@@ -114,6 +114,44 @@ public final class Paygate {
         }
     }
 
+    /// Whether Paygate finishes **every** StoreKit transaction it sees, not
+    /// only the purchases it made.
+    ///
+    /// Off by default. Paygate finishes what it bought, including an Ask to
+    /// Buy purchase that is approved later, and leaves every other
+    /// transaction alone. An app with purchase code of its own (one that
+    /// verifies a purchase with its server before finishing it) relies on
+    /// that: before 0.7.0 Paygate finished those too, sometimes before the
+    /// app had verified them, so the buyer paid and was not unlocked.
+    ///
+    /// Turn it on only when Paygate is the one thing in the app that buys,
+    /// so renewals and purchases made outside the app get finished too. That
+    /// is how every version before 0.7.0 behaved. Set it before ``initialize(apiKey:baseURL:)``.
+    public static var completesAllPurchases = false
+
+    /// The language the app shows, as a BCP 47 tag (`"es"`, `"pt-BR"`), when
+    /// the app has a language setting of its own. `nil`, the default, means
+    /// the device language.
+    ///
+    /// A paywall is a web page, so it sees the device's language, not the
+    /// app's. Set this when the reader picks a language in your app and the
+    /// paywall follows it: the flow reads it as `paygate.locale`,
+    /// `navigator.language` reports it, and the wording Paygate writes for a
+    /// product's billing period and trial comes back in it. Prices do not
+    /// change: they are the store's price for the reader's country, which is
+    /// what they are charged. A `locale:` passed to a launch wins over this.
+    public static var locale: String?
+
+    /// ``locale`` as sent: trimmed, and `nil` when empty or not a plausible
+    /// language tag, so a typo falls back to the device language.
+    static func normalizedLocale(_ value: String?) -> String? {
+        guard let trimmed = value?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !trimmed.isEmpty, trimmed.count <= 35,
+              trimmed.range(of: "^[A-Za-z]{2,8}([-_][A-Za-z0-9]{1,8})*$", options: .regularExpression) != nil
+        else { return nil }
+        return trimmed.replacingOccurrences(of: "_", with: "-")
+    }
+
     /// ``appUserId`` as sent: trimmed, and `nil` when empty or too long for
     /// the server to accept.
     static var normalizedAppUserId: String? {
@@ -130,9 +168,11 @@ public final class Paygate {
     /// `cache_on_first_launch` would serve whatever country happened to open it
     /// first to everyone afterwards — the same wrong-price bug, with a harder
     /// repro.
-    static func cacheKey(_ id: String, storefront: String?) -> String {
+    static func cacheKey(_ id: String, storefront: String?, locale: String? = nil) -> String {
         // The platform is constant within a build, so it adds nothing here.
-        "\(id)|\(storefront ?? "-")"
+        // The language is in the key because the server writes a product's
+        // period and trial wording in it.
+        "\(id)|\(storefront ?? "-")|\(locale ?? "-")"
     }
 
     /// Force the distribution channel, whatever this build actually is.
@@ -221,6 +261,8 @@ public final class Paygate {
     ///     paywall's corners match your app's other sheets. Drawn as a
     ///     continuous corner. Only for `.sheet`, on iOS 16 and later; `nil`
     ///     (the default) keeps the system's radius.
+    ///   - locale: The language for this paywall, overriding ``locale``.
+    ///     `nil` uses ``locale``, and the device language when that is unset.
     /// - Returns: A typed result with status, optional productId, and optional data.
     @MainActor
     public static func launchFlow(
@@ -228,7 +270,8 @@ public final class Paygate {
         bounces: Bool = false,
         presentationStyle: PaygatePresentationStyle = .sheet,
         appearance: PaygateAppearance = .system,
-        sheetCornerRadius: CGFloat? = nil
+        sheetCornerRadius: CGFloat? = nil,
+        locale: String? = nil
     ) async throws -> PaygateLaunchResult {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
@@ -238,13 +281,14 @@ public final class Paygate {
         // yet the server falls back to the template's key — a paywall that
         // renders late is worse than one showing the fallback price.
         let storefront = await Paygate.currentStorefront
-        let flowKey = Paygate.cacheKey(flowId, storefront: storefront)
+        let language = Paygate.normalizedLocale(locale ?? Paygate.locale)
+        let flowKey = Paygate.cacheKey(flowId, storefront: storefront, locale: language)
 
         let flowData: FlowData
         if let cached = flowCache[flowKey] {
             flowData = cached
         } else {
-            let fetched = try await flows.getFlow(flowId, storefront: storefront)
+            let fetched = try await flows.getFlow(flowId, storefront: storefront, locale: language)
             flowCache[flowKey] = fetched
             flowData = fetched
         }
@@ -268,7 +312,8 @@ public final class Paygate {
                 baseURL: baseURL,
                 bounces: bounces,
                 gateId: nil,
-                appearance: appearance
+                appearance: appearance,
+                locale: language
             ) { result in
                 switch result {
                 case .dismissed(let data):
@@ -301,6 +346,8 @@ public final class Paygate {
     ///     paywall's corners match your app's other sheets. Drawn as a
     ///     continuous corner. Only for `.sheet`, on iOS 16 and later; `nil`
     ///     (the default) keeps the system's radius.
+    ///   - locale: The language for this paywall, overriding ``locale``.
+    ///     `nil` uses ``locale``, and the device language when that is unset.
     /// - Returns: A typed result with status, optional productId, and optional data.
     @MainActor
     public static func launchGate(
@@ -308,7 +355,8 @@ public final class Paygate {
         bounces: Bool = false,
         presentationStyle: PaygatePresentationStyle = .sheet,
         appearance: PaygateAppearance? = nil,
-        sheetCornerRadius: CGFloat? = nil
+        sheetCornerRadius: CGFloat? = nil,
+        locale: String? = nil
     ) async throws -> PaygateLaunchResult {
         guard let apiKey = apiKey else {
             throw PaygateError.notInitialized
@@ -317,14 +365,15 @@ public final class Paygate {
         let channel = Paygate.currentChannel
         // Never block the launch on StoreKit — see launchFlow.
         let storefront = await Paygate.currentStorefront
-        let gateKey = Paygate.cacheKey(gateId, storefront: storefront)
+        let language = Paygate.normalizedLocale(locale ?? Paygate.locale)
+        let gateKey = Paygate.cacheKey(gateId, storefront: storefront, locale: language)
 
         let response: GateFlowResponse
         if let cached = gateCache[gateKey] {
             response = cached
         } else {
             do {
-                let fetched = try await gates.getGate(gateId, storefront: storefront)
+                let fetched = try await gates.getGate(gateId, storefront: storefront, locale: language)
                 // Caching is decided by this build's channel, so a debug build
                 // set to refresh re-fetches while the shipped app still caches.
                 if fetched.gate.launchCache(on: channel) == .cacheOnFirstLaunch {
@@ -374,7 +423,8 @@ public final class Paygate {
                 purchaseRequired: purchaseRequired,
                 disableWebViewCache: disableWebViewCache,
                 appearance: resolvedAppearance,
-                storefront: storefront
+                storefront: storefront,
+                locale: language
             ) { result in
                 switch result {
                 case .dismissed(let data):
