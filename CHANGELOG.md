@@ -1,4 +1,4 @@
-## Unreleased
+## 0.7.0
 
 - **Paygate finishes only the purchases it made.** It used to finish every
   StoreKit transaction it saw, including ones the app's own purchase code
