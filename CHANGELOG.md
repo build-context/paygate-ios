@@ -1,4 +1,4 @@
-## 0.6.1
+## Unreleased (next: 0.7.1)
 
 - **A purchase made in a gate is credited to that gate.** After a purchase
   completes inside `launchGate`, the SDK reports which gate and paywall sold
@@ -11,6 +11,28 @@
   an app that is killed or offline straight after a purchase still sends it
   on its next launch. Restores are not reported: a restore is not a sale.
 - No API changes.
+
+## 0.7.0
+
+- **Paygate finishes only the purchases it made.** It used to finish every
+  StoreKit transaction it saw, including ones the app's own purchase code
+  started. An app that verifies a purchase with its server before finishing it
+  could have a purchase finished before the server saw it, so the buyer paid
+  and was not unlocked until a Restore. Paygate now finishes what it bought,
+  including an Ask to Buy purchase approved later, and leaves the rest.
+  **If Paygate is the only thing in your app that buys,** set
+  `Paygate.completesAllPurchases = true` before `initialize` so renewals and
+  purchases made outside the app are still finished, as before.
+- **`Paygate.locale`**, and `locale:` on `launchGate` and `launchFlow`: the
+  paywall follows the app's language instead of the device's. The flow sees it
+  as `navigator.language` and `paygate.locale`, and Paygate writes a product's
+  billing period and trial in it. Prices don't change; they follow the
+  reader's store country. `nil`, the default, keeps the device language.
+- **`sheetCornerRadius`** on `launchGate` and `launchFlow`: the paywall sheet's
+  corner radius in points, so its corners match the app's other sheets. iOS
+  draws it as a continuous corner (`UISheetPresentationController.preferredCornerRadius`).
+  It applies to `.sheet` on iOS 16 and later. `nil`, the default, keeps the
+  system's radius, so apps that don't pass it see no change.
 
 ## 0.6.0
 

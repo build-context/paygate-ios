@@ -153,6 +153,8 @@ public actor StoreKitManager {
         case .userCancelled:
             return nil
         case .pending:
+            // Paygate started it, so Paygate finishes it when it clears.
+            Self.addAwaiting(productID)
             return nil
         @unknown default:
             return nil
@@ -176,7 +178,44 @@ public actor StoreKitManager {
             // longer owned — a later renewal of it may still be active.
             await loadPurchasedProducts()
         }
-        await transaction.finish()
+        // Only what Paygate bought. A transaction the app's own purchase code
+        // started is the app's to finish, after it has verified it; finishing
+        // it here could drop it before the app's server saw it.
+        if Self.shouldFinish(
+            productID: transaction.productID,
+            completesAll: Paygate.completesAllPurchases,
+            awaiting: Self.awaitingProductIDs()
+        ) {
+            Self.removeAwaiting(transaction.productID)
+            await transaction.finish()
+        }
+    }
+
+    /// Whether an update delivered by `Transaction.updates` is Paygate's to
+    /// finish: a purchase Paygate started that came back pending (Ask to Buy,
+    /// a bank check), or anything at all when the app opted in.
+    static func shouldFinish(productID: String, completesAll: Bool, awaiting: Set<String>) -> Bool {
+        completesAll || awaiting.contains(productID)
+    }
+
+    // Products Paygate started a purchase for that came back pending. Kept on
+    // disk because the approval can arrive in a later launch.
+    private static let awaitingKey = "com.paygate.awaitingProductIDs"
+
+    static func awaitingProductIDs(_ defaults: UserDefaults = .standard) -> Set<String> {
+        Set(defaults.stringArray(forKey: awaitingKey) ?? [])
+    }
+
+    static func addAwaiting(_ productID: String, _ defaults: UserDefaults = .standard) {
+        var ids = awaitingProductIDs(defaults)
+        ids.insert(productID)
+        defaults.set(Array(ids), forKey: awaitingKey)
+    }
+
+    static func removeAwaiting(_ productID: String, _ defaults: UserDefaults = .standard) {
+        var ids = awaitingProductIDs(defaults)
+        guard ids.remove(productID) != nil else { return }
+        defaults.set(Array(ids), forKey: awaitingKey)
     }
 
     private func logFetchedProducts(_ products: [Product], requested: [String]) {

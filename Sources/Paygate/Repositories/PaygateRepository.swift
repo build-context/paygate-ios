@@ -15,7 +15,9 @@ class PaygateRepository {
 
     /// - Parameter storefront: Store country to price this render for, when
     ///   known. Only the render calls pass one.
-    func get<T: Decodable>(_ path: String, storefront: String? = nil) async throws -> T {
+    /// - Parameter locale: The app's language, so the server writes a
+    ///   product's period and trial wording in it.
+    func get<T: Decodable>(_ path: String, storefront: String? = nil, locale: String? = nil) async throws -> T {
         guard let url = URL(string: "\(baseURL)\(path)") else {
             throw PaygateError.invalidURL
         }
@@ -23,6 +25,7 @@ class PaygateRepository {
         var request = URLRequest(url: url)
         PaygateHTTP.applyDefaultHeaders(to: &request, apiKey: apiKey)
         PaygateHTTP.applyStorefront(to: &request, storefront: storefront)
+        if let locale { request.setValue(locale, forHTTPHeaderField: "Paygate-Locale") }
 
         let (data, response) = try await session.data(for: request)
 
